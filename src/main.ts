@@ -23,7 +23,7 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('API Docs')
+    .setTitle('ABI ISP API Docs')
     .setDescription('API description')
     .setVersion('1.0')
     .addTag('apidocs')

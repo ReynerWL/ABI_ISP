@@ -6,6 +6,14 @@ import { HealthModule } from './health/health.module';
 import configuration from './config/configuration';
 import * as pino from 'pino';
 import { CoreModule } from '#/core/core.module';
+import { AuthModule } from './auth/auth.module';
+import { UserModule } from './user/user.module';
+import { RoleModule } from './role/role.module';
+import { BankModule } from './bank/bank.module';
+import { PaketModule } from './paket/paket.module';
+import { SubscriptionModule } from './subscription/subscription.module';
+import { ReportModule } from './report/report.module';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [
@@ -63,12 +71,20 @@ import { CoreModule } from '#/core/core.module';
           .default('development'),
         PORT: Joi.number().default(3000),
         DATABASE_URL: Joi.string(),
-        JWT_PUBLIC_KEY: Joi.string(),
+        JWT_SECRET_KEY: Joi.string(),
       }),
       isGlobal: true,
     }),
     CoreModule,
     HealthModule,
+    AuthModule,
+    UserModule,
+    RoleModule,
+    BankModule,
+    PaketModule,
+    SubscriptionModule,
+    ReportModule,
+    PaymentModule,
   ],
 })
 export class AppModule {}
