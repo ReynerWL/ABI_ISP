@@ -15,6 +15,8 @@ export class HealthController {
   @Get()
   @HealthCheck()
   check() {
+    const token = '';
+
     return this.health.check([
       () => {
         return this.http.pingCheck(
