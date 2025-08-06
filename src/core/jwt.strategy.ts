@@ -13,14 +13,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload) {
-    console.log(payload);
-
+  async validate(payload: {
+    id: string;
+    name: string;
+    email: string;
+    roles?: string[];
+    accesses?: Record<string, boolean>;
+  }) {
     return {
       id: payload.id,
       name: payload.name,
       email: payload.email,
-      roles: payload.roles || [], // Hindari undefined, jadikan array kosong jika tidak ada
+      roles: payload.roles || [],
       accesses: payload.accesses || {},
     };
   }

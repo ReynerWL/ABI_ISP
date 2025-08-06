@@ -22,7 +22,7 @@ export class LoginService {
   async login(loginDto: LoginDto) {
     const dataUser = await this.findUser(loginDto.email);
     const hashedPassword = await hashPassword(loginDto.password, dataUser.salt);
-    const matched = hashedPassword == dataUser.password;
+    const matched = hashedPassword === dataUser.password;
 
     if (!matched) {
       throw new HttpException(
