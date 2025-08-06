@@ -1,6 +1,6 @@
 import { isNotEmpty, IsNotEmpty } from 'class-validator';
 
-export class CreateUserDto {
+export class RegisterDto {
   @IsNotEmpty()
   email: string;
 
@@ -18,13 +18,4 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   photo_ktp: string;
-
-  @IsNotEmpty()
-  status: string;
-
-  @IsNotEmpty()
-  role: string;
-
-  @IsNotEmpty()
-  priority: boolean;
 }

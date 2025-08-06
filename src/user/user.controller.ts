@@ -1,34 +1,79 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpStatus,
+  Query,
+  Request,
+  ParseUUIDPipe,
+  Put,
+} from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ExtendedRequest } from '#/core/request';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
+  async create(@Body() createUserDto: CreateUserDto) {
+    return {
+      data: await this.userService.create(createUserDto),
+      statusCode: HttpStatus.CREATED,
+      message: 'success',
+    };
   }
 
   @Get()
-  findAll() {
-    return this.userService.findAll();
+  async findAll(
+    @Request() req: ExtendedRequest,
+    @Query('query') query: string,
+    @Query('start_date') start_date: string,
+    @Query('end_date') end_date: string,
+    @Query('page') page: number,
+    @Query('page_size') page_size: number = 10,
+  ) {
+    return await this.userService.findAll(
+      query,
+      start_date,
+      end_date,
+      page,
+      page_size,
+    );
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.userService.findOne(+id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return {
+      data: await this.userService.findOne(id),
+      statusCode: HttpStatus.OK,
+      message: 'success',
+    };
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
+  @Put(':id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return {
+      data: await this.userService.update(id, updateUserDto),
+      statusCode: HttpStatus.OK,
+      message: 'success',
+    };
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.userService.remove(+id);
+  async remove(@Param('id') id: string) {
+    return {
+      data: await this.userService.remove(id),
+      statusCode: HttpStatus.OK,
+    };
   }
 }

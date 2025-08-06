@@ -7,16 +7,21 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(configService: ConfigService) {
     super({
-      secretOrKey: configService.get<string>('jwt.secret'),
+      secretOrKey: configService.get<string>('JWT_PUBLIC_KEY'),
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
     });
   }
 
   async validate(payload) {
+    console.log(payload);
+
     return {
       id: payload.id,
-      roles: payload.roles,
+      name: payload.name,
+      email: payload.email,
+      roles: payload.roles || [], // Hindari undefined, jadikan array kosong jika tidak ada
+      accesses: payload.accesses || {},
     };
   }
 }
