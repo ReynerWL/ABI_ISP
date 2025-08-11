@@ -13,9 +13,9 @@ import { RegisterDto } from './dto/register.dto';
 @Injectable()
 export class UserService {
   constructor(
+    private dataSource: DataSource,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly dataSource: DataSource,
   ) {}
 
   async create(createUserDto: CreateUserDto) {

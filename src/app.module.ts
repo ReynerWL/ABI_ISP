@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as Joi from 'joi';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
@@ -14,6 +14,9 @@ import { PaketModule } from './paket/paket.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { ReportModule } from './report/report.module';
 import { PaymentModule } from './payment/payment.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+require('dotenv').config();
 
 @Module({
   imports: [
@@ -74,6 +77,25 @@ import { PaymentModule } from './payment/payment.module';
         JWT_SECRET_KEY: Joi.string(),
       }),
       isGlobal: true,
+    }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        return {
+          type: configService.get<'postgres'>('database.client'),
+          host: configService.get<string>('database.host'),
+          port: configService.get<number>('database.port'),
+          username: configService.get<string>('database.username'),
+          password: configService.get<string>('database.password'),
+          database: configService.get<string>('database.name'),
+          entities: [],
+          synchronize: configService.get<boolean>('database.synchronize'),
+          logging: configService.get<boolean>('database.logging'),
+          autoLoadEntities: true,
+          namingStrategy: new SnakeNamingStrategy(),
+        };
+      },
+      inject: [ConfigService],
     }),
     CoreModule,
     HealthModule,
