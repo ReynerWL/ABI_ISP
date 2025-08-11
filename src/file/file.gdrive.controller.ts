@@ -1,13 +1,13 @@
-import { 
-  Controller, 
-  Post, 
-  UseInterceptors, 
-  UploadedFile, 
-  Get, 
-  Param, 
+import {
+  Controller,
+  Post,
+  UseInterceptors,
+  UploadedFile,
+  Get,
+  Param,
   Query,
   UseFilters,
-  HttpStatus
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileService } from './file.service';
@@ -15,15 +15,15 @@ import { File as MulterFile } from 'multer';
 
 @Controller('file-gdrive')
 export class FileController {
-  constructor(private readonly fileservice: FileService) {} 
+  constructor(private readonly fileservice: FileService) {}
 
   @Post('upload')
   async uploadImage(@UploadedFile() file: MulterFile) {
     const url = await this.fileservice.uploadImage(file);
-   return {
-         data: url,
-         statusCode: HttpStatus.OK,
-         message: 'success upload file',
+    return {
+      data: url,
+      statusCode: HttpStatus.OK,
+      message: 'success upload file',
     };
   }
 

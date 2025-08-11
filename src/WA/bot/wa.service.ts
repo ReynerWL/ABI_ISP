@@ -1,6 +1,10 @@
 // src/WA/bot/wa.service.ts
 import { Injectable } from '@nestjs/common';
-import makeWASocket, { useMultiFileAuthState, fetchLatestBaileysVersion, WASocket } from '@whiskeysockets/baileys';
+import makeWASocket, {
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+  WASocket,
+} from '@whiskeysockets/baileys';
 import { menuHandler } from './menuHandler';
 import { reminderTask, expirationTask } from './reminder';
 import { paymentFlow } from './paymentFlow';
@@ -26,15 +30,22 @@ export class WAService {
 
       const jid = msg.key.remoteJid!;
       const content = msg.message;
-      const text = content?.conversation || content?.extendedTextMessage?.text || '';
-      const selectedButtonId = content?.buttonsResponseMessage?.selectedButtonId;
+      const text =
+        content?.conversation || content?.extendedTextMessage?.text || '';
+      const selectedButtonId =
+        content?.buttonsResponseMessage?.selectedButtonId;
 
       if (content.imageMessage) {
         await paymentFlow.handleImage(this.sock, jid, msg);
         return;
       }
 
-      await menuHandler(this.sock, jid, text.trim().toLowerCase(), selectedButtonId);
+      await menuHandler(
+        this.sock,
+        jid,
+        text.trim().toLowerCase(),
+        selectedButtonId,
+      );
     });
 
     reminderTask(this.sock);

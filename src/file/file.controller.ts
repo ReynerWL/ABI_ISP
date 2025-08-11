@@ -77,7 +77,7 @@ export class FileControllers {
         error: 'file not detected',
       };
     }
-    const files:any = file.url
+    const files: any = file.url;
     return {
       data: files,
       statusCode: HttpStatus.OK,

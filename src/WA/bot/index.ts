@@ -1,4 +1,7 @@
-import makeWASocket, { useMultiFileAuthState, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import makeWASocket, {
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+} from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { menuHandler } from './menuHandler';
 import { reminderTask, expirationTask } from './reminder';
@@ -22,7 +25,8 @@ async function startBot() {
 
     const jid = msg.key.remoteJid!;
     const content = msg.message;
-    const text = content?.conversation || content?.extendedTextMessage?.text || '';
+    const text =
+      content?.conversation || content?.extendedTextMessage?.text || '';
     const selectedButtonId = content?.buttonsResponseMessage?.selectedButtonId;
 
     // Handle image for payment proof
@@ -34,8 +38,8 @@ async function startBot() {
     await menuHandler(sock, jid, text.trim().toLowerCase(), selectedButtonId);
   });
 
-  reminderTask(sock);     // every 25th
-  expirationTask(sock);   // every 1st
+  reminderTask(sock); // every 25th
+  expirationTask(sock); // every 1st
 }
 
 startBot();

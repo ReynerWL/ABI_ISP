@@ -1,4 +1,8 @@
-import makeWASocket, { WASocket, AnyMessageContent, proto } from '@whiskeysockets/baileys';
+import makeWASocket, {
+  WASocket,
+  AnyMessageContent,
+  proto,
+} from '@whiskeysockets/baileys';
 
 export interface Session {
   state: 'awaitingMenu' | 'awaitingPaymentProof' | 'idle';
@@ -11,9 +15,13 @@ export interface Session {
 
 export const sessions: Map<string, Session> = new Map();
 
-export const handleIncomingMessage = async (sock: WASocket, msg: proto.IWebMessageInfo) => {
+export const handleIncomingMessage = async (
+  sock: WASocket,
+  msg: proto.IWebMessageInfo,
+) => {
   const sender = msg.key.remoteJid;
-  const message = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+  const message =
+    msg.message?.conversation || msg.message?.extendedTextMessage?.text;
 
   if (!sender || !message) return;
 
@@ -28,16 +36,22 @@ export const handleIncomingMessage = async (sock: WASocket, msg: proto.IWebMessa
   } else if (session.state === 'awaitingMenu') {
     // Handle replies to menu options
     if (message === '1') {
-      await sock.sendMessage(sender, { text: 'Please upload your payment proof image or receipt.' });
+      await sock.sendMessage(sender, {
+        text: 'Please upload your payment proof image or receipt.',
+      });
       sessions.set(sender, {
         state: 'awaitingPaymentProof',
         customer: { id: sender }, // You can customize this
       });
     } else if (message === '2') {
-      await sock.sendMessage(sender, { text: 'Your subscription is active until DD/MM/YYYY.' });
+      await sock.sendMessage(sender, {
+        text: 'Your subscription is active until DD/MM/YYYY.',
+      });
       sessions.set(sender, { state: 'idle' });
     } else {
-      await sock.sendMessage(sender, { text: 'Invalid option. Please reply with "menu" to see the options.' });
+      await sock.sendMessage(sender, {
+        text: 'Invalid option. Please reply with "menu" to see the options.',
+      });
     }
   } else if (session.state === 'awaitingPaymentProof') {
     // Just respond. The actual image will be handled in `paymentFlow.ts`
