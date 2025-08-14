@@ -15,21 +15,26 @@ export class PaymentFlowService {
     private paymentsService: PaymentService,
     private usersService: UserService,
     private menuUI: MenuUIService,
-    private dataSource: DataSource
+    private dataSource: DataSource,
   ) {}
 
   async confirmPayment(client: any, paymentId: string) {
     try {
       const payment = await this.paymentsService.confirmPayment(paymentId);
-      const user = await this.usersService.findByCustomerId(payment.users[0].customerId);
-      
+      const user = await this.usersService.findByCustomerId(
+        payment.users[0].customerId,
+      );
+
       if (user) {
-        await this.menuUI.sendPaymentSuccess(client, `${user.phone_number}@c.us`);
+        await this.menuUI.sendPaymentSuccess(
+          client,
+          `${user.phone_number}@c.us`,
+        );
         await this.dataSource.manager.update(User, user.id, {
           status: 'ACTIVE',
         });
       }
-      
+
       this.logger.log(`Payment confirmed for ${payment.users[0].customerId}`);
     } catch (error) {
       this.logger.error(`Failed to confirm payment ${paymentId}`, error.stack);
@@ -38,13 +43,22 @@ export class PaymentFlowService {
 
   async rejectPayment(client: any, paymentId: string, reason: string) {
     try {
-      const payment = await this.paymentsService.rejectPayment(paymentId, reason);
-      const user = await this.usersService.findByCustomerId(payment.users[0].customerId);
-      
+      const payment = await this.paymentsService.rejectPayment(
+        paymentId,
+        reason,
+      );
+      const user = await this.usersService.findByCustomerId(
+        payment.users[0].customerId,
+      );
+
       if (user) {
-        await this.menuUI.sendPaymentRejected(client, `${user.phone_number}@c.us`, reason);
+        await this.menuUI.sendPaymentRejected(
+          client,
+          `${user.phone_number}@c.us`,
+          reason,
+        );
       }
-      
+
       this.logger.log(`Payment rejected for ${payment.users[0].id}{reason}`);
     } catch (error) {
       this.logger.error(`Failed to reject payment ${paymentId}`, error.stack);
@@ -56,13 +70,19 @@ export class PaymentFlowService {
       where: { status: 'EXPIRED' },
       relations: ['role'],
     });
-    
+
     for (const user of expiredUsers) {
       try {
-        await this.menuUI.sendServiceExpired(client, `${user.phone_number}@c.us`);
+        await this.menuUI.sendServiceExpired(
+          client,
+          `${user.phone_number}@c.us`,
+        );
         this.logger.log(`Sent service expired notice to ${user.phone_number}`);
       } catch (error) {
-        this.logger.error(`Failed to notify ${user.phone_number} about expired subscription`, error.stack);
+        this.logger.error(
+          `Failed to notify ${user.phone_number} about expired subscription`,
+          error.stack,
+        );
       }
     }
   }
@@ -70,17 +90,27 @@ export class PaymentFlowService {
   async sendPaymentReminders(client: any) {
     const dueUsers = await this.dataSource.manager.find(User, {
       where: {
-        status: 'ACTIVE',},
-        relations: ['role'],
+        status: 'ACTIVE',
+      },
+      relations: ['role'],
     });
-    
+
     for (const user of dueUsers) {
       const daysLeft = this.calculateDaysLeft(user.subscription.due_date);
       try {
-        await this.menuUI.sendSubscriptionReminder(client, `${user.phone_number}@c.us`, daysLeft);
-        this.logger.log(`Sent payment reminder to ${user.phone_number} (${daysLeft} days left)`);
+        await this.menuUI.sendSubscriptionReminder(
+          client,
+          `${user.phone_number}@c.us`,
+          daysLeft,
+        );
+        this.logger.log(
+          `Sent payment reminder to ${user.phone_number} (${daysLeft} days left)`,
+        );
       } catch (error) {
-        this.logger.error(`Failed to send reminder to ${user.phone_number}`, error.stack);
+        this.logger.error(
+          `Failed to send reminder to ${user.phone_number}`,
+          error.stack,
+        );
       }
     }
   }

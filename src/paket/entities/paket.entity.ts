@@ -35,13 +35,13 @@ export class Paket {
   })
   deletedAt: Date | null;
 
- @OneToMany(
+  @OneToMany(
     () => {
       return User;
     },
     (user) => {
       return user.paket;
-    }
+    },
   )
   users?: User[];
 }

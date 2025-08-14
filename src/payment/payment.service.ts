@@ -6,9 +6,7 @@ import { DataSource } from 'typeorm';
 
 @Injectable()
 export class PaymentService {
-  constructor(
-    private dataSource: DataSource
-  ) {}
+  constructor(private dataSource: DataSource) {}
 
   create(createPaymentDto: CreatePaymentDto) {
     return 'This action adds a new payment';
@@ -21,7 +19,7 @@ export class PaymentService {
 
   async rejectPayment(paymentId: string, reason: string) {
     // Logic to reject a payment
-     return await this.dataSource.manager.findOne(Payment, {
+    return await this.dataSource.manager.findOne(Payment, {
       where: { id: paymentId },
       relations: ['users'],
     });

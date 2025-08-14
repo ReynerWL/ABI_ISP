@@ -214,7 +214,7 @@ export class UserService {
   async findExpiredUsers() {
     return this.userRepository.find({
       where: {
-        status: "EXPIRED",
+        status: 'EXPIRED',
       },
       relations: ['role'],
     });

@@ -110,14 +110,12 @@ export class User {
     },
     (payment) => {
       return payment.users;
-    }
+    },
   )
   payments: Payment[];
 
-  @OneToOne(
-    () => {
-      return Subscription;
-    }
-  )
-  subscription: Subscription; 
+  @OneToOne(() => {
+    return Subscription;
+  })
+  subscription: Subscription;
 }

@@ -1,6 +1,11 @@
 // src/wa.service.ts
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { makeWASocket, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys';
+import {
+  makeWASocket,
+  fetchLatestBaileysVersion,
+  DisconnectReason,
+  makeCacheableSignalKeyStore,
+} from '@whiskeysockets/baileys';
 import { SessionService } from './session';
 import { MenuHandlerService } from './menuHandler';
 import { ReminderService } from './reminder';
@@ -43,7 +48,9 @@ export class WhatsAppService implements OnModuleInit {
     this.client.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect } = update;
       if (connection === 'close') {
-        const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+        const shouldReconnect =
+          lastDisconnect.error?.output?.statusCode !==
+          DisconnectReason.loggedOut;
         this.logger.warn(`Connection closed. Reconnecting: ${shouldReconnect}`);
         if (shouldReconnect) {
           await this.startBot();

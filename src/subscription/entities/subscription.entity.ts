@@ -12,11 +12,11 @@ import {
 } from 'typeorm';
 
 @Entity()
-export class Subscription{
+export class Subscription {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({type: 'time with time zone', nullable: true})
+  @Column({ type: 'time with time zone', nullable: true })
   due_date: Date;
 
   @CreateDateColumn({
@@ -46,5 +46,4 @@ export class Subscription{
     },
   )
   user: User;
-
 }

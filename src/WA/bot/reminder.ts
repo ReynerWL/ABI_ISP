@@ -19,7 +19,7 @@ export class ReminderService {
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async handleDailyReminders() {
     if (!this.whatsappClient) return;
-    
+
     this.logger.log('Sending daily payment reminders');
     await this.paymentFlow.sendPaymentReminders(this.whatsappClient);
   }
@@ -27,7 +27,7 @@ export class ReminderService {
   @Cron('0 0 1 * * *') // 1st of every month at midnight
   async handleExpiredSubscriptions() {
     if (!this.whatsappClient) return;
-    
+
     this.logger.log('Checking for expired subscriptions');
     await this.paymentFlow.checkExpiredSubscriptions(this.whatsappClient);
   }
@@ -35,7 +35,7 @@ export class ReminderService {
   @Cron('0 0 9 25 * *') // 25th day of every month at 9 AM
   async handleSubscriptionReminders() {
     if (!this.whatsappClient) return;
-    
+
     this.logger.log('Sending subscription renewal reminders');
     await this.paymentFlow.sendPaymentReminders(this.whatsappClient);
   }
