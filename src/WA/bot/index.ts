@@ -1,45 +1,22 @@
-import makeWASocket, {
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-} from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
-import { menuHandler } from './menuHandler';
-import { reminderTask, expirationTask } from './reminder';
-import { paymentFlow } from './paymentFlow';
+// src/index.ts
+import { NestFactory } from '@nestjs/core';
+import { WhatsAppService } from './wa.service';
+import { Logger } from '@nestjs/common';
+import { WAModule } from '../wa.module';
 
-async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState('./auth');
-  const { version } = await fetchLatestBaileysVersion();
+async function bootstrap() {
+  const app = await NestFactory.create(WAModule);
+  const waService = app.get(WhatsAppService);
+  const logger = new Logger('Bootstrap');
 
-  const sock = makeWASocket({
-    version,
-    auth: state,
-    printQRInTerminal: true,
-  });
-
-  sock.ev.on('creds.update', saveCreds);
-
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return;
-
-    const jid = msg.key.remoteJid!;
-    const content = msg.message;
-    const text =
-      content?.conversation || content?.extendedTextMessage?.text || '';
-    const selectedButtonId = content?.buttonsResponseMessage?.selectedButtonId;
-
-    // Handle image for payment proof
-    if (content.imageMessage) {
-      await paymentFlow.handleImage(sock, jid, msg);
-      return;
-    }
-
-    await menuHandler(sock, jid, text.trim().toLowerCase(), selectedButtonId);
-  });
-
-  reminderTask(sock); // every 25th
-  expirationTask(sock); // every 1st
+  try {
+    await waService.startBot();
+    logger.log('WhatsApp bot started successfully');
+    await app.listen(3000);
+  } catch (error) {
+    logger.error('Failed to start WhatsApp bot', error.stack);
+    process.exit(1);
+  }
 }
 
-startBot();
+bootstrap();

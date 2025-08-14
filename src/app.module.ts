@@ -16,6 +16,12 @@ import { ReportModule } from './report/report.module';
 import { PaymentModule } from './payment/payment.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+import { WhatsAppService } from './WA/bot/wa.service';
+import { SessionService } from './WA/bot/session';
+import { MenuHandlerService } from './WA/bot/menuHandler';
+import { MenuUIService } from './WA/bot/menuUI';
+import { PaymentFlowService } from './WA/bot/paymentFlow';
+import { ReminderService } from './WA/bot/reminder';
 require('dotenv').config();
 
 @Module({
@@ -107,6 +113,12 @@ require('dotenv').config();
     SubscriptionModule,
     ReportModule,
     PaymentModule,
+    WhatsAppService,
+    SessionService,
+    MenuHandlerService,
+    MenuUIService,
+    PaymentFlowService,
+    ReminderService,
   ],
 })
 export class AppModule {}

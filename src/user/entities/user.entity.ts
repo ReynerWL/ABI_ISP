@@ -1,4 +1,7 @@
+import { Paket } from '#/paket/entities/paket.entity';
+import { Payment } from '#/payment/entities/payment.entity';
 import { Role } from '#/role/entities/role.entity';
+import { Subscription } from '#/subscription/entities/subscription.entity';
 import { Exclude } from 'class-transformer';
 import {
   Column,
@@ -6,6 +9,8 @@ import {
   DeleteDateColumn,
   Entity,
   ManyToOne,
+  OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -14,6 +19,9 @@ import {
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ nullable: true })
+  customerId: string;
 
   @Column({ nullable: true })
   email: string;
@@ -85,4 +93,31 @@ export class User {
     },
   )
   role: Role;
+
+  @ManyToOne(
+    () => {
+      return Paket;
+    },
+    (paket) => {
+      return paket.users;
+    },
+  )
+  paket: Paket;
+
+  @OneToMany(
+    () => {
+      return Payment;
+    },
+    (payment) => {
+      return payment.users;
+    }
+  )
+  payments: Payment[];
+
+  @OneToOne(
+    () => {
+      return Subscription;
+    }
+  )
+  subscription: Subscription; 
 }

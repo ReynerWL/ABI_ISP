@@ -1,58 +1,68 @@
-// src/WA/bot/wa.service.ts
-import { Injectable } from '@nestjs/common';
-import makeWASocket, {
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  WASocket,
-} from '@whiskeysockets/baileys';
-import { menuHandler } from './menuHandler';
-import { reminderTask, expirationTask } from './reminder';
-import { paymentFlow } from './paymentFlow';
+// src/wa.service.ts
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { makeWASocket, fetchLatestBaileysVersion, DisconnectReason, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys';
+import { SessionService } from './session';
+import { MenuHandlerService } from './menuHandler';
+import { ReminderService } from './reminder';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
-export class WAService {
-  private sock: WASocket;
+export class WhatsAppService implements OnModuleInit {
+  private client: any;
+  private logger = new Logger('WhatsAppService');
 
-  async start() {
-    const { state, saveCreds } = await useMultiFileAuthState('./auth');
+  constructor(
+    private sessionService: SessionService,
+    private menuHandler: MenuHandlerService,
+    private reminderService: ReminderService,
+  ) {}
+
+  async onModuleInit() {
+    await this.startBot();
+  }
+
+  async startBot() {
+    const { state, saveState } = await this.sessionService.loadAuthState();
     const { version } = await fetchLatestBaileysVersion();
-    this.sock = makeWASocket({
+
+    this.client = makeWASocket({
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys),
+      },
       version,
-      auth: state,
       printQRInTerminal: true,
     });
 
-    this.sock.ev.on('creds.update', saveCreds);
-
-    this.sock.ev.on('messages.upsert', async ({ messages }) => {
-      const msg = messages[0];
-      if (!msg.message || msg.key.fromMe) return;
-
-      const jid = msg.key.remoteJid!;
-      const content = msg.message;
-      const text =
-        content?.conversation || content?.extendedTextMessage?.text || '';
-      const selectedButtonId =
-        content?.buttonsResponseMessage?.selectedButtonId;
-
-      if (content.imageMessage) {
-        await paymentFlow.handleImage(this.sock, jid, msg);
-        return;
-      }
-
-      await menuHandler(
-        this.sock,
-        jid,
-        text.trim().toLowerCase(),
-        selectedButtonId,
-      );
-    });
-
-    reminderTask(this.sock);
-    expirationTask(this.sock);
+    this.client.ev.on('creds.update', saveState);
+    this.setupMessageHandler();
+    this.reminderService.startSchedulers(this.client);
   }
 
-  async sendMessage(jid: string, text: string) {
-    await this.sock.sendMessage(jid, { text });
+  private setupMessageHandler() {
+    this.client.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect } = update;
+      if (connection === 'close') {
+        const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+        this.logger.warn(`Connection closed. Reconnecting: ${shouldReconnect}`);
+        if (shouldReconnect) {
+          await this.startBot();
+        }
+      } else if (connection === 'open') {
+        this.logger.log('Connected to WhatsApp');
+      }
+    });
+
+    this.client.ev.on('messages.upsert', async ({ messages }) => {
+      const msg = messages[0];
+      if (!msg.key.fromMe && msg.message) {
+        const customerNumber = msg.key.remoteJid;
+        await this.menuHandler.handleMessage(this.client, customerNumber, msg);
+      }
+    });
+  }
+
+  getClient() {
+    return this.client;
   }
 }

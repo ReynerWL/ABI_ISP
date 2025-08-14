@@ -1,88 +1,94 @@
-import { WASocket, downloadMediaMessage } from '@whiskeysockets/baileys';
-import axios from 'axios';
-import { sessions, Session } from './session';
-import FormData from 'form-data';
+// src/paymentFlow.ts
+import { Injectable } from '@nestjs/common';
+import { MenuUIService } from './menuUI';
+import { Logger } from '@nestjs/common';
+import { PaymentService } from '#/payment/payment.service';
+import { UserService } from '#/user/user.service';
+import { DataSource } from 'typeorm';
+import { User } from '#/user/entities/user.entity';
 
-export const paymentFlow = {
-  initFlow: async (sock: WASocket, sender: string) => {
-    sessions.set(sender, {
-      step: 'awaitingCustomerId',
-      state: 'awaitingMenu',
+@Injectable()
+export class PaymentFlowService {
+  private logger = new Logger('PaymentFlowService');
+
+  constructor(
+    private paymentsService: PaymentService,
+    private usersService: UserService,
+    private menuUI: MenuUIService,
+    private dataSource: DataSource
+  ) {}
+
+  async confirmPayment(client: any, paymentId: string) {
+    try {
+      const payment = await this.paymentsService.confirmPayment(paymentId);
+      const user = await this.usersService.findByCustomerId(payment.users[0].customerId);
+      
+      if (user) {
+        await this.menuUI.sendPaymentSuccess(client, `${user.phone_number}@c.us`);
+        await this.dataSource.manager.update(User, user.id, {
+          status: 'ACTIVE',
+        });
+      }
+      
+      this.logger.log(`Payment confirmed for ${payment.users[0].customerId}`);
+    } catch (error) {
+      this.logger.error(`Failed to confirm payment ${paymentId}`, error.stack);
+    }
+  }
+
+  async rejectPayment(client: any, paymentId: string, reason: string) {
+    try {
+      const payment = await this.paymentsService.rejectPayment(paymentId, reason);
+      const user = await this.usersService.findByCustomerId(payment.users[0].customerId);
+      
+      if (user) {
+        await this.menuUI.sendPaymentRejected(client, `${user.phone_number}@c.us`, reason);
+      }
+      
+      this.logger.log(`Payment rejected for ${payment.users[0].id}{reason}`);
+    } catch (error) {
+      this.logger.error(`Failed to reject payment ${paymentId}`, error.stack);
+    }
+  }
+
+  async checkExpiredSubscriptions(client: any) {
+    const expiredUsers = await this.dataSource.manager.find(User, {
+      where: { status: 'EXPIRED' },
+      relations: ['role'],
     });
-    await sock.sendMessage(sender, {
-      text: 'Silakan masukkan Customer ID Anda:',
-    });
-  },
-
-  handleResponse: async (sock: WASocket, sender: string, text: string) => {
-    const session = sessions.get(sender);
-    if (!session) return false;
-
-    if (session.step === 'awaitingCustomerId') {
+    
+    for (const user of expiredUsers) {
       try {
-        const res = await axios.get(`${process.env.BASE_URL}/user/id/${text}`);
-        if (res.data) {
-          session.customer = res.data;
-          session.step = 'awaitingConfirmation';
-          await sock.sendMessage(sender, {
-            text: `Data Anda:\nNama: ${res.data.name}\nPaket: ${res.data.package}\n\nApakah ini benar? (yes/no)`,
-          });
-        } else {
-          await sock.sendMessage(sender, {
-            text: `Customer ID tidak ditemukan. Coba lagi.`,
-          });
-        }
-      } catch {
-        await sock.sendMessage(sender, {
-          text: `Terjadi kesalahan saat mengambil data.`,
-        });
+        await this.menuUI.sendServiceExpired(client, `${user.phone_number}@c.us`);
+        this.logger.log(`Sent service expired notice to ${user.phone_number}`);
+      } catch (error) {
+        this.logger.error(`Failed to notify ${user.phone_number} about expired subscription`, error.stack);
       }
-      return true;
     }
+  }
 
-    if (session.step === 'awaitingConfirmation') {
-      if (text.toLowerCase() === 'yes') {
-        session.step = 'awaitingImage';
-        await sock.sendMessage(sender, {
-          text: 'Silakan kirim gambar bukti pembayaran Anda.',
-        });
-      } else {
-        sessions.delete(sender);
-        await sock.sendMessage(sender, {
-          text: 'Proses dibatalkan. Ketik "menu" untuk mulai lagi.',
-        });
+  async sendPaymentReminders(client: any) {
+    const dueUsers = await this.dataSource.manager.find(User, {
+      where: {
+        status: 'ACTIVE',},
+        relations: ['role'],
+    });
+    
+    for (const user of dueUsers) {
+      const daysLeft = this.calculateDaysLeft(user.subscription.due_date);
+      try {
+        await this.menuUI.sendSubscriptionReminder(client, `${user.phone_number}@c.us`, daysLeft);
+        this.logger.log(`Sent payment reminder to ${user.phone_number} (${daysLeft} days left)`);
+      } catch (error) {
+        this.logger.error(`Failed to send reminder to ${user.phone_number}`, error.stack);
       }
-      return true;
     }
+  }
 
-    return false;
-  },
-
-  handleImage: async function (
-    sock: WASocket,
-    sender: string,
-    imageMessage: any,
-  ) {
-    const session = sessions.get(sender);
-    if (!session || session.step !== 'awaitingImage') return;
-
-    // Download image as Buffer
-    const buffer = await downloadMediaMessage(imageMessage, 'buffer', {});
-
-    // Prepare multipart form data
-    const formData = new FormData();
-    formData.append('file', buffer, 'proof.jpg'); // field name must match FileInterceptor('file')
-    formData.append('customerId', session.customer.id);
-
-    // Send to NestJS upload endpoint
-    await axios.post(`${process.env.BASE_URL}/file/upload`, formData, {
-      headers: formData.getHeaders(),
-    });
-
-    // Clear session and send confirmation
-    sessions.delete(sender);
-    await sock.sendMessage(sender, {
-      text: 'Bukti pembayaran diterima. Silakan tunggu konfirmasi.',
-    });
-  },
-};
+  private calculateDaysLeft(endDate: Date): number {
+    const today = new Date();
+    const end = new Date(endDate);
+    const diffTime = end.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+}

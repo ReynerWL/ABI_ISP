@@ -1,31 +1,42 @@
-import cron from 'node-cron';
-import { WASocket } from '@whiskeysockets/baileys';
-import axios from 'axios';
+// src/reminder.ts
+import { Injectable } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { PaymentFlowService } from './paymentFlow';
+import { Logger } from '@nestjs/common';
 
-export const reminderTask = (sock: WASocket) => {
-  // Reminder sent on the 25th at 9:00 AM
-  cron.schedule('0 9 25 * *', async () => {
-    const { data: users } = await axios.get(
-      `${process.env.BASE_URL}/users/due`,
-    );
-    for (const user of users) {
-      await sock.sendMessage(user.waNumber + '@s.whatsapp.net', {
-        text: `Hi ${user.name}, your subscription is due. Please pay before the 1st to avoid suspension. Reply "menu" to continue.`,
-      });
-    }
-  });
-};
+@Injectable()
+export class ReminderService {
+  private logger = new Logger('ReminderService');
+  private whatsappClient: any;
 
-export const expirationTask = (sock: WASocket) => {
-  // Expired warning sent on the 1st at 9:00 AM
-  cron.schedule('0 9 1 * *', async () => {
-    const { data: expiredUsers } = await axios.get(
-      `${process.env.BASE_URL}/users/expired`,
-    );
-    for (const user of expiredUsers) {
-      await sock.sendMessage(user.waNumber + '@s.whatsapp.net', {
-        text: `Hi ${user.name}, your subscription has expired due to non-payment. Please reply "menu" to renew.`,
-      });
-    }
-  });
-};
+  constructor(private paymentFlow: PaymentFlowService) {}
+
+  startSchedulers(client: any) {
+    this.whatsappClient = client;
+    this.logger.log('Reminder schedulers started');
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_9AM)
+  async handleDailyReminders() {
+    if (!this.whatsappClient) return;
+    
+    this.logger.log('Sending daily payment reminders');
+    await this.paymentFlow.sendPaymentReminders(this.whatsappClient);
+  }
+
+  @Cron('0 0 1 * * *') // 1st of every month at midnight
+  async handleExpiredSubscriptions() {
+    if (!this.whatsappClient) return;
+    
+    this.logger.log('Checking for expired subscriptions');
+    await this.paymentFlow.checkExpiredSubscriptions(this.whatsappClient);
+  }
+
+  @Cron('0 0 9 25 * *') // 25th day of every month at 9 AM
+  async handleSubscriptionReminders() {
+    if (!this.whatsappClient) return;
+    
+    this.logger.log('Sending subscription renewal reminders');
+    await this.paymentFlow.sendPaymentReminders(this.whatsappClient);
+  }
+}

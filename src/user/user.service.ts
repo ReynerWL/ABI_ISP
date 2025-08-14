@@ -194,6 +194,32 @@ export class UserService {
     return user;
   }
 
+  async findByCustomerId(customerId: string) {
+    const user = await this.userRepository.findOne({
+      where: { customerId },
+      relations: ['role'],
+    });
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'user not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return user;
+  }
+
+  async findExpiredUsers() {
+    return this.userRepository.find({
+      where: {
+        status: "EXPIRED",
+      },
+      relations: ['role'],
+    });
+  }
+
   async update(id: string, updateUserDto: UpdateUserDto) {
     const user = await this.userRepository.findOneOrFail({
       where: { id },
