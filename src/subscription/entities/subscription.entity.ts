@@ -1,3 +1,5 @@
+import { Bank } from '#/bank/entities/bank.entity';
+import { Paket } from '#/paket/entities/paket.entity';
 import { User } from '#/user/entities/user.entity';
 import {
   Column,
@@ -46,4 +48,24 @@ export class Subscription {
     },
   )
   user: User;
+
+  @OneToMany(
+    () => {
+      return Paket;
+    },
+    (paket) => {
+      return paket.subscriptions;
+    },
+  )
+  pakets?: Paket[];
+
+  @ManyToOne(
+    () => {
+      return Bank;
+    },
+    (bank) => {
+      return bank.subscriptions;
+    },
+  )
+  banks?: Bank;
 }

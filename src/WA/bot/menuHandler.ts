@@ -4,6 +4,8 @@ import { MenuUIService } from './menuUI';
 import { Logger } from '@nestjs/common';
 import { UserService } from '#/user/user.service';
 import { PaymentService } from '#/payment/payment.service';
+import { DataSource } from 'typeorm';
+import { Subscription } from '#/subscription/entities/subscription.entity';
 
 @Injectable()
 export class MenuHandlerService {
@@ -17,6 +19,7 @@ export class MenuHandlerService {
     private usersService: UserService,
     private paymentsService: PaymentService,
     private menuUI: MenuUIService,
+    private dataSource: DataSource,
   ) {}
 
   async handleMessage(client: any, customerNumber: string, msg: any) {
@@ -160,17 +163,27 @@ export class MenuHandlerService {
       const imageBuffer = await client.downloadMediaMessage(msg);
 
       // Create payment record
-      const payment = await this.paymentsService.createPayment({
-        customerId: userState.customerId,
-        proofImage: imageBuffer,
+      const subscription = await this.dataSource.manager.findOne(Subscription, {
+        where: { user: { customerId: userState.customerId } },
+        order: { createdAt: 'DESC' },
+      });
+      
+      const payment = await this.paymentsService.create({
+        usersId: userState.customerId,
+        buktiPembayaran: imageBuffer,
         status: 'pending',
+        price: subscription?.pakets?.[0]?.price,
+        reason: '',
+        paketsId: subscription?.pakets?.[0].id || '',
+        banksId: subscription?.banks?.[0].id || '',
       });
 
       this.userStates.delete(customerNumber);
 
       await client.sendMessage(customerNumber, {
-        text: '✅ Payment proof received!\n\nYour payment is now being verified. You will receive a confirmation within 24 hours.',
+        text: '✅ Payment proof received!\n\nYour payment is now being verified. You will receive a confirmation within 24 hours, Your Payment ID: ' + payment.id,
       });
+      
     } catch (error) {
       this.logger.error(
         `Failed to process payment proof from ${customerNumber}`,

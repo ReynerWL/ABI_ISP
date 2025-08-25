@@ -20,9 +20,9 @@ export class PaymentFlowService {
 
   async confirmPayment(client: any, paymentId: string) {
     try {
-      const payment = await this.paymentsService.confirmPayment(paymentId);
+      const payment = await this.paymentsService.findOne(paymentId);
       const user = await this.usersService.findByCustomerId(
-        payment.users[0].customerId,
+        payment.user.customerId,
       );
 
       if (user) {
@@ -35,7 +35,7 @@ export class PaymentFlowService {
         });
       }
 
-      this.logger.log(`Payment confirmed for ${payment.users[0].customerId}`);
+      this.logger.log(`Payment confirmed for ${payment.user.customerId}`);
     } catch (error) {
       this.logger.error(`Failed to confirm payment ${paymentId}`, error.stack);
     }
@@ -48,7 +48,7 @@ export class PaymentFlowService {
         reason,
       );
       const user = await this.usersService.findByCustomerId(
-        payment.users[0].customerId,
+        payment.user.customerId,
       );
 
       if (user) {
@@ -59,7 +59,7 @@ export class PaymentFlowService {
         );
       }
 
-      this.logger.log(`Payment rejected for ${payment.users[0].id}{reason}`);
+      this.logger.log(`Payment rejected for ${payment.user.id}{reason}`);
     } catch (error) {
       this.logger.error(`Failed to reject payment ${paymentId}`, error.stack);
     }

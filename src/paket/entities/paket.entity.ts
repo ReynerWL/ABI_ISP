@@ -1,9 +1,14 @@
+import { Payment } from '#/payment/entities/payment.entity';
+import { Report } from '#/report/entities/report.entity';
+import { Subscription } from '#/subscription/entities/subscription.entity';
 import { User } from '#/user/entities/user.entity';
 import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  ManyToMany,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -16,6 +21,9 @@ export class Paket {
 
   @Column()
   name: string;
+
+  @Column({ type: 'text', nullable: true })
+  price: string;
 
   @CreateDateColumn({
     type: 'timestamp with time zone',
@@ -44,4 +52,34 @@ export class Paket {
     },
   )
   users?: User[];
+
+  @OneToMany(
+    () => {
+      return Payment;
+    },
+    (payment) => {
+      return payment.pakets;
+    }
+  )
+  payments?: Payment[];
+
+  @ManyToOne(
+    () => {
+      return Subscription;
+    },
+    (subscription) => {
+      return subscription.pakets;
+    },
+  )
+  subscriptions?: Subscription;
+
+  @OneToMany(
+    () => {
+      return Report;
+    },
+    (report) => {
+      return report.paket;
+    },
+  )
+  reports?: Report[];
 }

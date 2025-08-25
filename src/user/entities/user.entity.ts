@@ -1,5 +1,6 @@
 import { Paket } from '#/paket/entities/paket.entity';
 import { Payment } from '#/payment/entities/payment.entity';
+import { Report } from '#/report/entities/report.entity';
 import { Role } from '#/role/entities/role.entity';
 import { Subscription } from '#/subscription/entities/subscription.entity';
 import { Exclude } from 'class-transformer';
@@ -109,7 +110,7 @@ export class User {
       return Payment;
     },
     (payment) => {
-      return payment.users;
+      return payment.user;
     },
   )
   payments: Payment[];
@@ -118,4 +119,24 @@ export class User {
     return Subscription;
   })
   subscription: Subscription;
+
+  @OneToMany(
+    () => {
+      return Report;
+    },
+    (report) => {
+      return report.customer;
+    },
+  )
+  reportCustomer?: Report[];
+
+  @OneToMany(
+    () => {
+      return Report;
+    },
+    (report) => {
+      return report.petugas;
+    },
+  )
+  reportPetugas?: Report[];
 }

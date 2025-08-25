@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { BankService } from './bank.service';
 import { CreateBankDto } from './dto/create-bank.dto';
@@ -21,22 +22,28 @@ export class BankController {
   }
 
   @Get()
-  findAll() {
-    return this.bankService.findAll();
+  findAll(
+    @Query('query') query?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.bankService.findAll(query, Number(page), Number(limit));
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.bankService.findOne(+id);
+    return this.bankService.findOne(id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateBankDto: UpdateBankDto) {
-    return this.bankService.update(+id, updateBankDto);
+    return this.bankService.update(id, updateBankDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.bankService.remove(+id);
+    return this.bankService.remove(id);
   }
 }

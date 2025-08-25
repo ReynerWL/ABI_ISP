@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ReportService } from './report.service';
 import { CreateReportDto } from './dto/create-report.dto';
@@ -20,23 +21,29 @@ export class ReportController {
     return this.reportService.create(createReportDto);
   }
 
-  @Get()
-  findAll() {
-    return this.reportService.findAll();
+ @Get()
+  findAll(
+    @Query('query') query?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.reportService.findAll(query, startDate, endDate, Number(page), Number(limit));
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.reportService.findOne(+id);
+    return this.reportService.findOne(id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateReportDto: UpdateReportDto) {
-    return this.reportService.update(+id, updateReportDto);
+    return this.reportService.update(id, updateReportDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.reportService.remove(+id);
+    return this.reportService.remove(id);
   }
 }
