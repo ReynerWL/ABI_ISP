@@ -21,7 +21,7 @@ export class SubscriptionController {
     return this.subscriptionService.create(createSubscriptionDto);
   }
 
-@Get()
+  @Get()
   findAll(
     @Query('query') query?: string,
     @Query('startDate') startDate?: string,
@@ -29,7 +29,13 @@ export class SubscriptionController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
-    return this.subscriptionService.findAll(query, startDate, endDate, Number(page), Number(limit));
+    return this.subscriptionService.findAll(
+      query,
+      startDate,
+      endDate,
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Get(':id')

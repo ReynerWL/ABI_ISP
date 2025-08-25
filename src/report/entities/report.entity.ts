@@ -27,7 +27,6 @@ export class Report {
   note: string;
 
   @Column({ type: 'text', nullable: true })
-
   @CreateDateColumn({
     type: 'timestamp with time zone',
     nullable: false,
@@ -62,7 +61,7 @@ export class Report {
     },
     (user) => {
       return user.reportPetugas;
-    }
+    },
   )
   petugas?: User;
 
@@ -72,7 +71,7 @@ export class Report {
     },
     (paket) => {
       return paket.reports;
-    }
+    },
   )
   paket?: Paket;
 }

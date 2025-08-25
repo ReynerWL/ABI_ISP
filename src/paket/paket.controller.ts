@@ -29,7 +29,13 @@ export class PaketController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
-    return this.paketService.findAll(query, startDate, endDate, Number(page), Number(limit));
+    return this.paketService.findAll(
+      query,
+      startDate,
+      endDate,
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Get(':id')

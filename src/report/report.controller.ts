@@ -21,7 +21,7 @@ export class ReportController {
     return this.reportService.create(createReportDto);
   }
 
- @Get()
+  @Get()
   findAll(
     @Query('query') query?: string,
     @Query('startDate') startDate?: string,
@@ -29,7 +29,13 @@ export class ReportController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
-    return this.reportService.findAll(query, startDate, endDate, Number(page), Number(limit));
+    return this.reportService.findAll(
+      query,
+      startDate,
+      endDate,
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Get(':id')

@@ -14,7 +14,9 @@ export class SubscriptionService {
   ) {}
 
   async create(createSubscriptionDto: CreateSubscriptionDto) {
-    const subscription = this.subscriptionRepository.create(createSubscriptionDto);
+    const subscription = this.subscriptionRepository.create(
+      createSubscriptionDto,
+    );
     const result = await this.subscriptionRepository.save(subscription);
 
     return {
@@ -29,7 +31,8 @@ export class SubscriptionService {
     page: number = 1,
     limit: number = 10,
   ) {
-    const qb = this.subscriptionRepository.createQueryBuilder('subscription')
+    const qb = this.subscriptionRepository
+      .createQueryBuilder('subscription')
       .leftJoinAndSelect('subscription.user', 'user')
       .leftJoinAndSelect('subscription.pakets', 'pakets')
       .leftJoinAndSelect('subscription.banks', 'banks');

@@ -1,7 +1,7 @@
 export class CreateReportDto {
-    lokasi: string;
-    note: string;
-    customerId: string;
-    petugasId: string;
-    paketsId: string;
+  lokasi: string;
+  note: string;
+  customerId: string;
+  petugasId: string;
+  paketsId: string;
 }

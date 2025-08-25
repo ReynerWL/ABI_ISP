@@ -38,11 +38,7 @@ export class BankService {
     };
   }
 
-  async findAll(
-    query?: string,
-    page: number = 1,
-    limit: number = 10,
-  ) {
+  async findAll(query?: string, page: number = 1, limit: number = 10) {
     const qb = this.bankRepository.createQueryBuilder('bank');
 
     if (query) {

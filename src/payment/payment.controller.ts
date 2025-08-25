@@ -29,7 +29,13 @@ export class PaymentController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
-    return this.paymentService.findAll(query, startDate, endDate, Number(page), Number(limit));
+    return this.paymentService.findAll(
+      query,
+      startDate,
+      endDate,
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Get(':id')

@@ -1,5 +1,5 @@
 export class CreatePaketDto {
-    name: string;
-    price: string;
-    speed: string;
+  name: string;
+  price: string;
+  speed: string;
 }

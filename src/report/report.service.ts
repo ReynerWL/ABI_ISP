@@ -29,16 +29,16 @@ export class ReportService {
     page: number = 1,
     limit: number = 10,
   ) {
-    const qb = this.reportRepository.createQueryBuilder('report')
+    const qb = this.reportRepository
+      .createQueryBuilder('report')
       .leftJoinAndSelect('report.customer', 'customer')
       .leftJoinAndSelect('report.petugas', 'petugas')
       .leftJoinAndSelect('report.paket', 'paket');
 
     if (query) {
-      qb.andWhere(
-        'report.lokasi LIKE :query OR report.note LIKE :query',
-        { query: `%${query}%` }
-      );
+      qb.andWhere('report.lokasi LIKE :query OR report.note LIKE :query', {
+        query: `%${query}%`,
+      });
     }
 
     if (startDate && endDate) {

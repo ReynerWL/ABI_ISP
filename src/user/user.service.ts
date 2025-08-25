@@ -196,7 +196,7 @@ export class UserService {
 
   async findByCustomerId(customerId: string) {
     const user = await this.userRepository.findOne({
-      where: {id: customerId,role: {name: 'CUSTOMER'}} ,
+      where: { id: customerId, role: { name: 'CUSTOMER' } },
       relations: ['role'],
     });
     if (!user) {

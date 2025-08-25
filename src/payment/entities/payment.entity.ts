@@ -21,12 +21,12 @@ export class Payment {
   price: string;
 
   @Column({ type: 'text', nullable: true })
-  status: string; // PENDING, CONFIRMED, REJECTED 
+  status: string; // PENDING, CONFIRMED, REJECTED
 
   @Column({ type: 'text', nullable: true })
   buktiPembayaran: string; // URL or path to payment proof image
 
-  @Column({ type: 'text', nullable: true })   
+  @Column({ type: 'text', nullable: true })
   reason: string; // Reason for rejection if status is REJECTED
 
   @CreateDateColumn({
@@ -63,7 +63,7 @@ export class Payment {
     },
     (paket) => {
       return paket.payments;
-    }
+    },
   )
   pakets?: Paket;
 
@@ -73,7 +73,7 @@ export class Payment {
     },
     (bank) => {
       return bank.payments;
-    }
+    },
   )
   banks?: Bank;
 }

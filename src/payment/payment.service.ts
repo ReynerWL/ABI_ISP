@@ -21,7 +21,7 @@ export class PaymentService {
     if (!user) {
       throw new Error('User not found');
     }
-    const paket =await this.dataSource.manager.findOne(Paket, {
+    const paket = await this.dataSource.manager.findOne(Paket, {
       where: { id: createPaymentDto.paketsId },
     });
     if (!paket) {
@@ -42,7 +42,6 @@ export class PaymentService {
     });
     return await this.dataSource.manager.save(payment);
   }
-
 
   async rejectPayment(paymentId: string, reason: string) {
     // Logic to reject a payment
@@ -113,7 +112,7 @@ export class PaymentService {
     return payment;
   }
 
-async update(id: string, updatePaymentDto: UpdatePaymentDto) {
+  async update(id: string, updatePaymentDto: UpdatePaymentDto) {
     const payment = await this.paymentRepository.findOne({
       where: { id },
     });
@@ -137,7 +136,7 @@ async update(id: string, updatePaymentDto: UpdatePaymentDto) {
   async remove(id: string) {
     const payment = this.paymentRepository.findOne({
       where: { id },
-    }); 
+    });
 
     if (!payment) {
       throw new HttpException(

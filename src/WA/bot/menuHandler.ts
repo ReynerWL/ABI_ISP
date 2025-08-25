@@ -167,7 +167,7 @@ export class MenuHandlerService {
         where: { user: { customerId: userState.customerId } },
         order: { createdAt: 'DESC' },
       });
-      
+
       const payment = await this.paymentsService.create({
         usersId: userState.customerId,
         buktiPembayaran: imageBuffer,
@@ -181,9 +181,10 @@ export class MenuHandlerService {
       this.userStates.delete(customerNumber);
 
       await client.sendMessage(customerNumber, {
-        text: '✅ Payment proof received!\n\nYour payment is now being verified. You will receive a confirmation within 24 hours, Your Payment ID: ' + payment.id,
+        text:
+          '✅ Payment proof received!\n\nYour payment is now being verified. You will receive a confirmation within 24 hours, Your Payment ID: ' +
+          payment.id,
       });
-      
     } catch (error) {
       this.logger.error(
         `Failed to process payment proof from ${customerNumber}`,
