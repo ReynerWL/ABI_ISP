@@ -6,12 +6,14 @@ import { DataSource, Repository } from 'typeorm';
 import { User } from '#/user/entities/user.entity';
 import { Bank } from '#/bank/entities/bank.entity';
 import { Paket } from '#/paket/entities/paket.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class PaymentService {
   constructor(
-    private dataSource: DataSource,
+    @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    private dataSource: DataSource,
   ) {}
 
   async create(createPaymentDto: CreatePaymentDto) {
