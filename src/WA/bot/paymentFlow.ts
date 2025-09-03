@@ -1,41 +1,53 @@
-// src/paymentFlow.ts
-import { Injectable } from '@nestjs/common';
+// src/WA/bot/paymentFlow.ts
+import { Injectable, Logger } from '@nestjs/common';
 import { MenuUIService } from './menuUI';
-import { Logger } from '@nestjs/common';
-import { PaymentService } from '#/payment/payment.service';
-import { UserService } from '#/user/user.service';
+import { PaymentService } from '../../payment/payment.service';
+import { UserService } from '../../user/user.service';
 import { DataSource } from 'typeorm';
-import { User } from '#/user/entities/user.entity';
+import { User } from '../../user/entities/user.entity';
+import { MailService } from '../../mail/mail.service'; // ✅ Add this
+import { Payment } from '#/payment/entities/payment.entity';
 
 @Injectable()
 export class PaymentFlowService {
   private logger = new Logger('PaymentFlowService');
 
   constructor(
-    private paymentsService: PaymentService,
-    private usersService: UserService,
+    private paymentService: PaymentService,
+    private userService: UserService,
     private menuUI: MenuUIService,
+    private mailService: MailService, // ✅ Inject MailService
     private dataSource: DataSource,
   ) {}
 
   async confirmPayment(client: any, paymentId: string) {
     try {
-      const payment = await this.paymentsService.findOne(paymentId);
-      const user = await this.usersService.findByCustomerId(
-        payment.user.customerId,
-      );
+      // Get payment with user
+      const payment = await this.dataSource.manager.findOne(Payment, {
+        where: { id: paymentId },
+        relations: ['user'],
+      });
 
-      if (user) {
-        await this.menuUI.sendPaymentSuccess(
-          client,
-          `${user.phone_number}@c.us`,
-        );
-        await this.dataSource.manager.update(User, user.id, {
-          status: 'ACTIVE',
-        });
+      if (!payment) {
+        this.logger.warn(`Payment not found: ${paymentId}`);
+        return;
       }
 
-      this.logger.log(`Payment confirmed for ${payment.user.customerId}`);
+      const user = await this.userService.findOne(payment.user.id);
+      if (!user) return;
+
+      // Update user status
+      await this.dataSource.manager.update(User, user.id, {
+        status: 'ACTIVE',
+      });
+
+      // Send WhatsApp
+      await this.menuUI.sendPaymentSuccess(client, `${user.phone_number}@c.us`);
+
+      // Send Email
+      await this.mailService.sendPaymentSuccess(user, payment.id, new Date());
+
+      this.logger.log(`Payment confirmed for ${user.customerId}`);
     } catch (error) {
       this.logger.error(`Failed to confirm payment ${paymentId}`, error.stack);
     }
@@ -43,23 +55,27 @@ export class PaymentFlowService {
 
   async rejectPayment(client: any, paymentId: string, reason: string) {
     try {
-      const payment = await this.paymentsService.rejectPayment(
-        paymentId,
-        reason,
-      );
-      const user = await this.usersService.findByCustomerId(
-        payment.user.customerId,
-      );
+      // First reject in DB
+      await this.paymentService.rejectPayment(paymentId, reason);
 
-      if (user) {
-        await this.menuUI.sendPaymentRejected(
-          client,
-          `${user.phone_number}@c.us`,
-          reason,
-        );
-      }
+      // Then fetch updated payment
+      const payment = await this.dataSource.manager.findOne(Payment, {
+        where: { id: paymentId },
+        relations: ['user'],
+      });
 
-      this.logger.log(`Payment rejected for ${payment.user.id}{reason}`);
+      if (!payment) return;
+
+      const user = await this.userService.findOne(payment.user.id);
+      if (!user) return;
+
+      // Send WhatsApp
+      await this.menuUI.sendPaymentRejected(client, `${user.phone_number}@c.us`, reason);
+
+      // Send Email
+      await this.mailService.sendPaymentRejected(user, reason);
+
+      this.logger.log(`Payment rejected for ${payment.user.id}: ${reason}`); // ✅ Fixed typo
     } catch (error) {
       this.logger.error(`Failed to reject payment ${paymentId}`, error.stack);
     }
@@ -73,10 +89,9 @@ export class PaymentFlowService {
 
     for (const user of expiredUsers) {
       try {
-        await this.menuUI.sendServiceExpired(
-          client,
-          `${user.phone_number}@c.us`,
-        );
+        await this.menuUI.sendServiceExpired(client, `${user.phone_number}@c.us`);
+        await this.mailService.sendSubscriptionReminder(user, new Date()); // ✅ Optional: send expired email
+
         this.logger.log(`Sent service expired notice to ${user.phone_number}`);
       } catch (error) {
         this.logger.error(
@@ -89,35 +104,39 @@ export class PaymentFlowService {
 
   async sendPaymentReminders(client: any) {
     const dueUsers = await this.dataSource.manager.find(User, {
-      where: {
-        status: 'ACTIVE',
-      },
-      relations: ['role'],
+      where: { status: 'ACTIVE' },
+      relations: ['role', 'subscription'], // ✅ Load subscription
     });
 
     for (const user of dueUsers) {
+      if (!user.subscription?.due_date) continue;
+
       const daysLeft = this.calculateDaysLeft(user.subscription.due_date);
+      if (daysLeft > 5) continue; // Only remind if 5 days or less
+
       try {
         await this.menuUI.sendSubscriptionReminder(
           client,
           `${user.phone_number}@c.us`,
           daysLeft,
         );
-        this.logger.log(
-          `Sent payment reminder to ${user.phone_number} (${daysLeft} days left)`,
-        );
+
+        // Send email reminder
+        await this.mailService.sendSubscriptionReminder(user, user.subscription.due_date);
+
+        this.logger.log(`Sent payment reminder to ${user.phone_number} (${daysLeft} days left)`);
       } catch (error) {
-        this.logger.error(
-          `Failed to send reminder to ${user.phone_number}`,
-          error.stack,
-        );
+        this.logger.error(`Failed to send reminder to ${user.phone_number}`, error.stack);
       }
     }
   }
 
-  private calculateDaysLeft(endDate: Date): number {
-    const today = new Date();
+  private calculateDaysLeft(endDate: Date | string): number {
     const end = new Date(endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
     const diffTime = end.getTime() - today.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
