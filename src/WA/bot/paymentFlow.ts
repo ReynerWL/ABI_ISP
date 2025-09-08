@@ -70,7 +70,11 @@ export class PaymentFlowService {
       if (!user) return;
 
       // Send WhatsApp
-      await this.menuUI.sendPaymentRejected(client, `${user.phone_number}@c.us`, reason);
+      await this.menuUI.sendPaymentRejected(
+        client,
+        `${user.phone_number}@c.us`,
+        reason,
+      );
 
       // Send Email
       await this.mailService.sendPaymentRejected(user, reason);
@@ -89,7 +93,10 @@ export class PaymentFlowService {
 
     for (const user of expiredUsers) {
       try {
-        await this.menuUI.sendServiceExpired(client, `${user.phone_number}@c.us`);
+        await this.menuUI.sendServiceExpired(
+          client,
+          `${user.phone_number}@c.us`,
+        );
         await this.mailService.sendSubscriptionReminder(user, new Date()); // ✅ Optional: send expired email
 
         this.logger.log(`Sent service expired notice to ${user.phone_number}`);
@@ -122,11 +129,19 @@ export class PaymentFlowService {
         );
 
         // Send email reminder
-        await this.mailService.sendSubscriptionReminder(user, user.subscription.due_date);
+        await this.mailService.sendSubscriptionReminder(
+          user,
+          user.subscription.due_date,
+        );
 
-        this.logger.log(`Sent payment reminder to ${user.phone_number} (${daysLeft} days left)`);
+        this.logger.log(
+          `Sent payment reminder to ${user.phone_number} (${daysLeft} days left)`,
+        );
       } catch (error) {
-        this.logger.error(`Failed to send reminder to ${user.phone_number}`, error.stack);
+        this.logger.error(
+          `Failed to send reminder to ${user.phone_number}`,
+          error.stack,
+        );
       }
     }
   }

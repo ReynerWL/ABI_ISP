@@ -19,7 +19,7 @@ import { MailService } from './mail.service';
           },
         },
         defaults: {
-          from: '"YourISP" <noreply@yourisp.com>',
+          from: '"No Reply" <amartanet578@gmail.com>',
         },
         template: {
           dir: join(__dirname, 'templates'),

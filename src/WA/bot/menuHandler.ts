@@ -14,7 +14,10 @@ import { CreatePaymentDto } from '#/payment/dto/create-payment.dto';
 @Injectable()
 export class MenuHandlerService {
   private logger = new Logger('MenuHandlerService');
-  private userStates = new Map<string, { stage: string; userId?: string; customerId?: string }>();
+  private userStates = new Map<
+    string,
+    { stage: string; userId?: string; customerId?: string }
+  >();
 
   constructor(
     private userService: UserService,
@@ -55,14 +58,21 @@ export class MenuHandlerService {
         await this.handlePaymentProof(client, customerNumber, msg);
       }
     } catch (error) {
-      this.logger.error(`Error handling message from ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Error handling message from ${customerNumber}`,
+        error.stack,
+      );
       await client.sendMessage(customerNumber, {
         text: '❌ An error occurred. Please try again later or contact support.',
       });
     }
   }
 
-  private async handleButtonResponse(client: any, customerNumber: string, buttonId: string) {
+  private async handleButtonResponse(
+    client: any,
+    customerNumber: string,
+    buttonId: string,
+  ) {
     switch (buttonId) {
       case 'pay':
         await this.menuUI.sendPaymentMenu(client, customerNumber);
@@ -83,7 +93,11 @@ export class MenuHandlerService {
     }
   }
 
-  private async handleCustomerId(client: any, customerNumber: string, text: string) {
+  private async handleCustomerId(
+    client: any,
+    customerNumber: string,
+    text: string,
+  ) {
     const match = text.match(/cid(\d+)/i);
     if (!match) {
       await client.sendMessage(customerNumber, {
@@ -107,7 +121,9 @@ export class MenuHandlerService {
 
     // Normalize phone numbers
     const userPhone = user.phone_number?.replace(/\D/g, '') || '';
-    const senderPhone = customerNumber.replace(/@c\.us$/, '').replace(/\D/g, '');
+    const senderPhone = customerNumber
+      .replace(/@c\.us$/, '')
+      .replace(/\D/g, '');
 
     if (userPhone !== senderPhone) {
       await client.sendMessage(customerNumber, {
@@ -130,10 +146,18 @@ export class MenuHandlerService {
     );
   }
 
-  private async handlePaymentProof(client: any, customerNumber: string, msg: any) {
+  private async handlePaymentProof(
+    client: any,
+    customerNumber: string,
+    msg: any,
+  ) {
     const userState = this.userStates.get(customerNumber);
 
-    if (!userState || userState.stage !== 'awaiting_proof' || !userState.userId) {
+    if (
+      !userState ||
+      userState.stage !== 'awaiting_proof' ||
+      !userState.userId
+    ) {
       await client.sendMessage(customerNumber, {
         text: '❌ Please start the payment process first. Reply with PAY to begin.',
       });
@@ -188,9 +212,14 @@ export class MenuHandlerService {
         await this.mailService.sendPaymentSuccess(user, payment.id, new Date());
       }
 
-      this.logger.log(`Payment proof received from ${customerNumber}, Payment ID: ${payment.id}`);
+      this.logger.log(
+        `Payment proof received from ${customerNumber}, Payment ID: ${payment.id}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to process payment proof from ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Failed to process payment proof from ${customerNumber}`,
+        error.stack,
+      );
       await client.sendMessage(customerNumber, {
         text: '❌ Failed to process payment proof. Please try sending the image again.',
       });

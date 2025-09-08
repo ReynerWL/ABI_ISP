@@ -1,6 +1,5 @@
-// src/session.ts
+// src/WA/bot/session.ts
 import { Injectable } from '@nestjs/common';
-// import { useSingleFileAuthState, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys';
 import { promises as fs } from 'fs';
 import { Logger } from '@nestjs/common';
 
@@ -47,6 +46,20 @@ export class SessionService {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Clear session file (used on logout)
+   */
+  async clearAuthState() {
+    try {
+      if (await this.fileExists(SESSION_FILE)) {
+        await fs.unlink(SESSION_FILE);
+        this.logger.log('Session file cleared');
+      }
+    } catch (error) {
+      this.logger.error('Failed to clear session file', error.stack);
     }
   }
 }
