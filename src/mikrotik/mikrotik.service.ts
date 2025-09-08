@@ -29,9 +29,7 @@ export class MikrotikService {
         return false;
       }
 
-      await api.write('/ip/hotspot/user/disable', [
-        '.id=' + users[0]['.id'],
-      ]);
+      await api.write('/ip/hotspot/user/disable', ['.id=' + users[0]['.id']]);
 
       this.logger.log(`MikroTik: Blocked user ${username}`);
       await api.close();
@@ -51,9 +49,7 @@ export class MikrotikService {
 
       if (users.length === 0) return false;
 
-      await api.write('/ip/hotspot/user/enable', [
-        '.id=' + users[0]['.id'],
-      ]);
+      await api.write('/ip/hotspot/user/enable', ['.id=' + users[0]['.id']]);
 
       this.logger.log(`MikroTik: Unblocked user ${username}`);
       await api.close();
@@ -64,7 +60,9 @@ export class MikrotikService {
     }
   }
 
-  async getUserStatus(username: string): Promise<{ active: boolean; uptime?: string }> {
+  async getUserStatus(
+    username: string,
+  ): Promise<{ active: boolean; uptime?: string }> {
     try {
       const api = await this.getClient();
       const activeUsers = await api.write('/ip/hotspot/active/print', [
@@ -77,7 +75,10 @@ export class MikrotikService {
         uptime: activeUsers[0]?.uptime,
       };
     } catch (error) {
-      this.logger.error(`MikroTik: Failed to get status for ${username}`, error.stack);
+      this.logger.error(
+        `MikroTik: Failed to get status for ${username}`,
+        error.stack,
+      );
       return { active: false };
     }
   }

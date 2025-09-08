@@ -19,9 +19,9 @@ export class WhatsAppController {
       }
     }
 
-    return { 
-      connected: false, 
-      qr: qr // data:image/png;base64,...
+    return {
+      connected: false,
+      qr: qr, // data:image/png;base64,...
     };
   }
 

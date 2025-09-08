@@ -1,5 +1,12 @@
 // src/mikrotik-log/entities/mikrotik-log.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+} from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 
 @Entity('mikrotik_logs')

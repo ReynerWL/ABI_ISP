@@ -63,11 +63,10 @@ export class WhatsAppService {
       if (connection === 'close') {
         this.connected = false;
         const shouldReconnect =
-          lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+          lastDisconnect?.error?.output?.statusCode !==
+          DisconnectReason.loggedOut;
 
-        this.logger.warn(
-          `Connection closed. Reconnecting: ${shouldReconnect}`,
-        );
+        this.logger.warn(`Connection closed. Reconnecting: ${shouldReconnect}`);
 
         if (shouldReconnect) {
           await this.startBot();
