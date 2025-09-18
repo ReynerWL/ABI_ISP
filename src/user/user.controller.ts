@@ -30,6 +30,15 @@ export class UserController {
     };
   }
 
+  @Post('register')
+  async regiter(@Body() createUserDto: CreateUserDto) {
+    return {
+      data: await this.userService.register(createUserDto),
+      statusCode: HttpStatus.CREATED,
+      message: 'success',
+    };
+  }
+
   @Get()
   async findAll(
     @Request() req: ExtendedRequest,
