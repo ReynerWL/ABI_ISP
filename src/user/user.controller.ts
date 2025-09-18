@@ -16,6 +16,7 @@ import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ExtendedRequest } from '#/core/request';
+import { RegisterDto } from './dto/register.dto';
 
 @Controller('user')
 export class UserController {
@@ -31,9 +32,9 @@ export class UserController {
   }
 
   @Post('register')
-  async regiter(@Body() createUserDto: CreateUserDto) {
+  async regiter(@Body() registerDto: RegisterDto) {
     return {
-      data: await this.userService.register(createUserDto),
+      data: await this.userService.register(registerDto),
       statusCode: HttpStatus.CREATED,
       message: 'success',
     };
