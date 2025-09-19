@@ -45,26 +45,26 @@ export class PaymentController {
     return {
       data: await this.paymentService.findOne(id),
       statusCode: HttpStatus.OK,
-      message: "Success",
-    }
+      message: 'Success',
+    };
   }
 
   @Put('/rejected/:id')
-  async rejectPayment(@Param('id') id: string, @Body('reason') reason:string){
-    return{
+  async rejectPayment(@Param('id') id: string, @Body('reason') reason: string) {
+    return {
       data: await this.paymentService.rejectPayment(id, reason),
       statusCode: HttpStatus.OK,
-      message: "Success"
-    }
+      message: 'Success',
+    };
   }
 
   @Put('/confirmed/:id')
-  async confirmPayment(@Param('id') id: string){
-    return{
+  async confirmPayment(@Param('id') id: string) {
+    return {
       data: await this.paymentService.confirmPayment(id),
       statusCode: HttpStatus.OK,
-      message: "Success"
-    }
+      message: 'Success',
+    };
   }
 
   @Patch(':id')

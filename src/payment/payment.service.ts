@@ -61,7 +61,7 @@ export class PaymentService {
     });
     return await this.dataSource.manager.findOne(Payment, {
       where: { id: payment.id },
-      relations: {user: true}
+      relations: { user: true },
     });
   }
 
@@ -80,7 +80,7 @@ export class PaymentService {
     });
     return await this.dataSource.manager.findOne(Payment, {
       where: { id: payment.id },
-      relations: {user: true}
+      relations: { user: true },
     });
   }
 
@@ -118,8 +118,8 @@ export class PaymentService {
 
   async findOne(id: string) {
     return await this.dataSource.manager.findOneOrFail(Payment, {
-      where:{id},
-      relations: { user: true, pakets: true}
+      where: { id },
+      relations: { user: true, pakets: true },
     });
   }
 
