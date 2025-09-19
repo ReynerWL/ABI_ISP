@@ -71,6 +71,13 @@ export class UserService {
     data.status = createUserDto.status;
     data.priority = createUserDto.priority;
 
+    const user_id = (await this.userRepository.count()) + 1;
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const sequential = user_id.toString().padStart(4, '0');
+    data.customerId = `${sequential}${year}${month}${day}`;
     // Insert new user into the repository
     const result = await this.userRepository.insert(data);
 
@@ -129,6 +136,14 @@ export class UserService {
     data.role = await this.dataSource.manager.findOneOrFail(Role, {
       where: { name: 'USER' },
     });
+
+    const user_id = (await this.userRepository.count()) + 1;
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const sequential = user_id.toString().padStart(4, '0');
+    data.customerId = `${sequential}${year}${month}${day}`;
 
     const result = await this.userRepository.insert(data);
 
@@ -214,10 +229,23 @@ export class UserService {
   async findExpiredUsers() {
     return this.userRepository.find({
       where: {
-        status: 'EXPIRED',
+        status: 'INACTIVE',
       },
-      relations: ['role'],
+      relations: ['role','paket','subscription','payment'],
     });
+  }
+  
+  async findActiveUsers() {
+    return this.userRepository.find({
+      where: {
+        status: 'ACTIVE',
+      },
+      relations: ['role','paket','subscription','payment'],
+    });
+  }
+
+  async markAsExpired(userId: string) {
+    return this.userRepository.update(userId, { status: 'INACTIVE' });
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {

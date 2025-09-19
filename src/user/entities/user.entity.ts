@@ -52,7 +52,7 @@ export class User {
     nullable: true,
     default: 'PENDING',
   })
-  status: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'BANNED' | 'NEW'
 
   @Column({
     type: 'text',

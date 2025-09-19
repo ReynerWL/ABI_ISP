@@ -87,7 +87,7 @@ export class PaymentFlowService {
 
   async checkExpiredSubscriptions(client: any) {
     const expiredUsers = await this.dataSource.manager.find(User, {
-      where: { status: 'EXPIRED' },
+      where: { status: 'INACTIVE' },
       relations: ['role'],
     });
 
@@ -109,10 +109,23 @@ export class PaymentFlowService {
     }
   }
 
-  async sendPaymentReminders(client: any) {
+  async sendPaymentReminders(
+    client: any,
+    user: User,
+    type: '7_days' | '3_days',
+  ) {
     const dueUsers = await this.dataSource.manager.find(User, {
-      where: { status: 'ACTIVE' },
+      where: { id: user.id },
       relations: ['role', 'subscription'], // ✅ Load subscription
+    });
+
+    const messages = {
+      '7_days': `📅 Reminder: Your subscription will renew in 7 days!\n\nPlease prepare your payment to avoid disconnection.`,
+      '3_days': `⚠️ Urgent: Your subscription ends in 3 days!\n\nPlease renew now to keep your internet active.`,
+    };
+
+    await client.sendMessage(`${user.phone_number}@c.us`, {
+      text: messages[type],
     });
 
     for (const user of dueUsers) {
@@ -143,6 +156,20 @@ export class PaymentFlowService {
           error.stack,
         );
       }
+    }
+  }
+
+  async notifyExpired(client: any, user: User) {
+    try {
+      await this.menuUI.sendServiceExpired(client, `${user.phone_number}@c.us`);
+      await this.mailService.sendSubscriptionReminder(user, new Date()); // ✅ Optional: send expired email
+
+      this.logger.log(`Sent service expired notice to ${user.phone_number}`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to notify ${user.phone_number} about expired subscription`,
+        error.stack,
+      );
     }
   }
 

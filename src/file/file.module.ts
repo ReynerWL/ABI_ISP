@@ -1,26 +1,31 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { MulterModule } from '@nestjs/platform-express';
-import { FileService } from './file.service';
-// import { multerConfig } from '#/config/multer.config';
-import { FileControllers } from './file.controller';
+// src/file/file.module.ts
+import { Module, Global } from '@nestjs/common';
+import { MinioStorageService } from './minio_storage';
+import { FileController } from './file.controller';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
+@Global()
 @Module({
-  imports: [
-    ConfigModule,
-    MulterModule.register({
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
+  imports: [ConfigModule],
+  controllers: [FileController],
+  providers: [
+    {
+      provide: MinioStorageService,
+      useFactory: (configService: ConfigService) => {
+        const config = {
+          bucket: configService.get<string>('MINIO_BUCKET'),
+          endPoint: configService.get<string>('MINIO_ENDPOINT'),
+          port: configService.get<number>('MINIO_PORT'),
+          useSSL: configService.get<boolean>('MINIO_USE_SSL') ?? false,
+        };
+
+        const service = new MinioStorageService(config);
+        service.ensureBucket(); // Auto-create bucket if not exists
+        return service;
       },
-      fileFilter: (req, file, callback) => {
-        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
-          return callback(new Error('Only image files are allowed!'), false);
-        }
-        callback(null, true);
-      },
-    }),
+      inject: [ConfigService],
+    },
   ],
-  controllers: [FileControllers],
-  providers: [FileService],
+  exports: [MinioStorageService],
 })
 export class FileModule {}

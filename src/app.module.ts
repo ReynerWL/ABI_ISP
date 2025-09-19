@@ -16,6 +16,12 @@ import { ReportModule } from './report/report.module';
 import { PaymentModule } from './payment/payment.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+import { WAModule } from './WA/wa.module';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { join } from 'path';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { MailModule } from './mail/mail.module';
+import { FileModule } from './file/file.module';
 require('dotenv').config();
 
 @Module({
@@ -97,6 +103,27 @@ require('dotenv').config();
       },
       inject: [ConfigService],
     }),
+    MailerModule.forRootAsync({
+      useFactory: () => ({
+        transport: {
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT) || 587,
+          secure: false,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        },
+        defaults: {
+          from: `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_FROM_EMAIL}>`,
+        },
+        template: {
+          dir: join(__dirname, 'mail/templates'),
+          adapter: new HandlebarsAdapter(),
+          options: { strict: true },
+        },
+      }),
+    }),
     CoreModule,
     HealthModule,
     AuthModule,
@@ -107,6 +134,9 @@ require('dotenv').config();
     SubscriptionModule,
     ReportModule,
     PaymentModule,
+    WAModule,
+    MailModule,
+    FileModule
   ],
 })
 export class AppModule {}

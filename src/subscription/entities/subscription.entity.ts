@@ -19,6 +19,9 @@ export class Subscription {
   id: string;
 
   @Column({ type: 'time with time zone', nullable: true })
+  start_date: Date;
+
+  @Column({ type: 'time with time zone', nullable: true })
   due_date: Date;
 
   @CreateDateColumn({

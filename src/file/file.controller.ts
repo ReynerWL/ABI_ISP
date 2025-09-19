@@ -1,87 +1,58 @@
-import * as Minio from 'minio';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-require('dotenv').config();
+// src/file/file.controller.ts
 import {
   Controller,
-  HttpException,
   Post,
   UploadedFile,
   UseInterceptors,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { MinioStorage } from 'src/file/minio_storage';
 import * as mime from 'mime';
 import * as uuid from 'uuid';
-import { ConfigService } from '@nestjs/config';
-
-const minioStorage = new MinioStorage();
+import { MinioStorageService } from './minio_storage';
 
 @Controller('file')
-export class FileControllers {
-  constructor(private _configService: ConfigService) {
-    const minio = new Minio.Client({
-      endPoint: _configService.get('minio.endpoint'),
-      port: +_configService.get('minio.port'),
-      useSSL: +_configService.get('minio.port') === 443,
-      accessKey: _configService.get('minio.access_key'),
-      secretKey: _configService.get('minio.secret_key'),
-    });
+export class FileController {
+  constructor(private readonly minioService: MinioStorageService) {}
 
-    minioStorage.setMinioClient(minio);
-    minioStorage.setConfig({
-      port: +_configService.get('minio.port'),
-      bucket: _configService.get('minio.bucket'),
-      endPoint: _configService.get('minio.endpoint'),
-      getFileName(req: any, opt: { mimetype: string }): string {
-        const extension = (mime as any).getExtension(opt.mimetype);
-
-        if (!opt.mimetype.startsWith('image/')) {
-          throw new HttpException(
-            {
-              statusCode: HttpStatus.BAD_REQUEST,
-              error: 'unsupported file type',
-            },
-            HttpStatus.BAD_REQUEST,
-          );
-        }
-
-        if (!req.query.type) {
-          throw new HttpException(
-            {
-              statusCode: HttpStatus.BAD_REQUEST,
-              error: 'type not supplied',
-            },
-            HttpStatus.BAD_REQUEST,
-          );
-        }
-
-        return `${req.query.type}/${uuid.v4()}.${extension}`;
-      },
-    });
-  }
-
+  /**
+   * Handle file upload via REST API (e.g., admin dashboard)
+   */
   @Post('upload')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: minioStorage,
-    }),
-  )
-  async postFile(@UploadedFile() file: any) {
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
-      return {
-        data: {},
-        statusCode: HttpStatus.BAD_REQUEST,
-        message: 'file not detected',
-        error: 'file not detected',
-      };
+      throw new BadRequestException('No file uploaded');
     }
-    const files: any = file.url;
-    return {
-      data: files,
-      statusCode: HttpStatus.OK,
-      message: 'success upload file',
-    };
+
+    // Validate file type
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Only image files are allowed');
+    }
+
+    // Extract query params (via request) – but we need access to req
+    // So we'll move filename logic into service or use custom field
+    const extension = mime.extension(file.mimetype);
+    const fileType = file.fieldname; // fallback: use field name like 'avatar', 'proof'
+    const fileName = `${fileType || 'upload'}/${uuid.v4()}.${extension}`;
+
+    try {
+      // Upload buffer to MinIO
+      const fileUrl = await this.minioService.uploadBuffer(file.buffer, fileName);
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'File uploaded successfully',
+        data: {
+          url: fileUrl,
+          size: file.size,
+          mimetype: file.mimetype,
+          fileName,
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException('File upload failed: ' + error.message);
+    }
   }
 }

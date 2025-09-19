@@ -4,10 +4,10 @@ import {
   makeWASocket,
   fetchLatestBaileysVersion,
   DisconnectReason,
-  makeCacheableSignalKeyStore,
   Browsers,
 } from '@whiskeysockets/baileys';
-import { SessionService } from './session';
+
+import { SessionService } from './session.service';
 import { MenuHandlerService } from './menuHandler';
 import { ReminderService } from './reminder';
 
@@ -16,7 +16,9 @@ export class WhatsAppService {
   private client: any;
   private qrCode: string | null = null;
   private connected: boolean = false;
+  private reconnecting = false; // Prevent flood
   private logger = new Logger('WhatsAppService');
+  private qrCodeRaw: string | null = null;
 
   constructor(
     private sessionService: SessionService,
@@ -24,69 +26,86 @@ export class WhatsAppService {
     private reminderService: ReminderService,
   ) {}
 
+  /**
+   * Start the WhatsApp bot
+   */
   async startBot() {
-    // Load session
-    const { state, saveState } = await this.sessionService.loadAuthState();
-    const { version } = await fetchLatestBaileysVersion();
+    try {
+      const { state, saveState } = await this.sessionService.loadAuthState();
+      const { version } = await fetchLatestBaileysVersion();
 
-    this.client = makeWASocket({
-      auth: {
-        creds: state.creds,
-        keys: makeCacheableSignalKeyStore(state.keys),
-      },
-      version,
-      browser: Browsers.appropriate('Chrome'), // Or Browsers.appropriate('Firefox'), etc.
-      printQRInTerminal: false, // 👈 Disabled — we want web QR
-    });
+      this.client = makeWASocket({
+        auth: state, // ✅ useMultiFileAuthState returns full state
+        version,
+        browser: Browsers.ubuntu('EDGE'), // ✅ Correct usage
+        printQRInTerminal: false,
+      });
 
-    // Save credentials when updated
-    this.client.ev.on('creds.update', saveState);
+      // Save credentials when updated
+      this.client.ev.on('creds.update', saveState);
 
-    // Handle connection events
-    this.client.ev.on('connection.update', async (update) => {
-      const { qr, connection, lastDisconnect } = update;
+      // Handle connection events
+      this.client.ev.on('connection.update', async (update) => {
+        const { qr, connection, lastDisconnect } = update;
 
-      if (qr) {
-        // Generate QR code as data URL
-        const qrcode = await import('qrcode');
-        this.qrCode = await qrcode.toDataURL(qr);
-        this.connected = false;
-        this.logger.log('QR code generated for web');
-      }
-
-      if (connection === 'open') {
-        this.qrCode = null;
-        this.connected = true;
-        this.logger.log('✅ Connected to WhatsApp');
-      }
-
-      if (connection === 'close') {
-        this.connected = false;
-        const shouldReconnect =
-          lastDisconnect?.error?.output?.statusCode !==
-          DisconnectReason.loggedOut;
-
-        this.logger.warn(`Connection closed. Reconnecting: ${shouldReconnect}`);
-
-        if (shouldReconnect) {
-          await this.startBot();
-        } else {
-          this.logger.warn('Bot logged out. Please scan QR again.');
+        if (qr) {
+          try {
+            const qrcode = await require('qrcode');
+            this.qrCode = await qrcode.toDataURL(qr); // For image
+            this.qrCodeRaw = qr; // Save raw string for ASCII
+            this.connected = false;
+            this.logger.log('📱 QR code generated for web');
+          } catch (err) {
+            this.logger.error('Failed to generate QR code', err);
+          }
         }
-      }
-    });
 
-    // Handle incoming messages
-    this.client.ev.on('messages.upsert', async ({ messages }) => {
-      const msg = messages[0];
-      if (!msg.key.fromMe && msg.message) {
-        const customerNumber = msg.key.remoteJid;
-        await this.menuHandler.handleMessage(this.client, customerNumber, msg);
-      }
-    });
+        if (connection === 'open') {
+          this.qrCode = null;
+          this.connected = true;
+          this.logger.log('✅ Connected to WhatsApp!');
+        }
 
-    // Start schedulers
-    this.reminderService.startSchedulers(this.client);
+        if (connection === 'close') {
+          const statusCode = lastDisconnect?.error?.output?.statusCode;
+          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+
+          this.logger.warn(
+            `🔁 Connection closed (code: ${statusCode}). Reconnecting: ${shouldReconnect}`,
+          );
+
+          if (shouldReconnect && !this.reconnecting) {
+            this.reconnecting = true;
+            setTimeout(() => {
+              this.startBot();
+              this.reconnecting = false;
+            }, 3000);
+          } else {
+            this.logger.warn('🛑 Bot logged out. Please scan QR again.');
+            this.qrCode = null;
+            this.connected = false;
+          }
+        }
+      });
+
+      // Handle incoming messages
+      this.client.ev.on('messages.upsert', async ({ messages }) => {
+        const msg = messages[0];
+        if (!msg.key.fromMe && msg.message) {
+          const customerNumber = msg.key.remoteJid;
+          await this.menuHandler.handleMessage(
+            this.client,
+            customerNumber,
+            msg,
+          );
+        }
+      });
+
+      // Start scheduled jobs (reminders)
+      this.reminderService.startSchedulers(this.client);
+    } catch (error) {
+      this.logger.error('Failed to start WhatsApp bot', error.stack);
+    }
   }
 
   /**
@@ -100,13 +119,13 @@ export class WhatsAppService {
    * Get connection status
    */
   getStatus() {
-    return {
-      connected: this.connected,
-      qr: !!this.qrCode,
-      qrCode: this.qrCode, // Optional: include QR in status
-    };
-  }
-
+  return {
+    connected: this.connected,
+    qr: !!this.qrCodeRaw,
+    qrCode: this.qrCode,           // Base64 image (optional)
+    qrCodeAscii: this.qrCodeRaw ? this.getQrCodeAscii() : null,
+  };
+}
   /**
    * Get WA client instance
    */
@@ -121,15 +140,33 @@ export class WhatsAppService {
     if (this.client) {
       try {
         await this.client.logout();
-        this.logger.log('Logged out from WhatsApp');
+        this.logger.log('📲 Logged out from WhatsApp');
       } catch (error) {
         this.logger.error('Error during logout', error);
       }
     }
+
     this.qrCode = null;
     this.connected = false;
+    this.reconnecting = false;
 
-    // Clear session file
+    // Clear session files
     await this.sessionService.clearAuthState();
+  }
+
+  async getQrCodeAscii(): Promise<string | null> {
+    if (!this.qrCodeRaw) return null;
+
+    try {
+      const qrcode = require('qrcode');
+      const ascii = await qrcode.toString(this.qrCodeRaw, {
+        type: 'terminal',
+        small: true,
+      });
+      return ascii;
+    } catch (error) {
+      this.logger.error('Failed to generate QR ASCII', error);
+      return null;
+    }
   }
 }
