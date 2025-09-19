@@ -35,6 +35,11 @@ export class User {
   @Column({ nullable: true })
   phone_number: string;
 
+  @Column({
+    nullable: true,
+  })
+  birth_date: string;
+
   @Exclude()
   @Column()
   password: string;
@@ -54,6 +59,24 @@ export class User {
     nullable: true,
   })
   alamat: string;
+
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  pronvisi: string;
+
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  kota: string;
+
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
+  kecamatan: string;
 
   @Column({
     type: 'text',

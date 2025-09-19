@@ -25,6 +25,9 @@ export class Paket {
   @Column({ type: 'text', nullable: true })
   price: string;
 
+  @Column({ type: 'text', nullable: true })
+  speed: string;
+
   @CreateDateColumn({
     type: 'timestamp with time zone',
     nullable: false,

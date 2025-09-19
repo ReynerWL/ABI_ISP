@@ -1,5 +1,10 @@
+import { IsNotEmpty } from "class-validator";
+
 export class CreateBankDto {
+  @IsNotEmpty()
   bank_name: string;
-  account_number: string;
-  account_holder: string;
+  @IsNotEmpty()
+  no_rekening: string;
+  @IsNotEmpty()
+  owner: string;
 }
