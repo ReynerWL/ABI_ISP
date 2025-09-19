@@ -40,7 +40,7 @@ export class PaymentService {
       user: user,
       pakets: paket,
       banks: bank,
-      status: 'PENDING',
+      status: 'Baru',
     });
     return await this.dataSource.manager.save(payment);
   }
@@ -49,7 +49,6 @@ export class PaymentService {
     // Logic to reject a payment
     const payment = await this.dataSource.manager.findOne(Payment, {
       where: { id: paymentId },
-      relations: ['users'],
     });
 
     if (!payment) {
@@ -57,20 +56,31 @@ export class PaymentService {
     }
 
     await this.dataSource.manager.update(Payment, paymentId, {
-      status: 'REJECTED',
+      status: 'Rejected',
       reason: reason,
     });
     return await this.dataSource.manager.findOne(Payment, {
       where: { id: payment.id },
-      relations: ['users'],
+      relations: {user: true}
     });
   }
 
   async confirmPayment(paymentId: string) {
     // Logic to confirm a payment
-    return await this.dataSource.manager.findOne(Payment, {
+    const payment = await this.dataSource.manager.findOne(Payment, {
       where: { id: paymentId },
-      relations: ['users'],
+    });
+
+    if (!payment) {
+      throw new Error('Payment not found');
+    }
+
+    await this.dataSource.manager.update(Payment, paymentId, {
+      status: 'Aktif',
+    });
+    return await this.dataSource.manager.findOne(Payment, {
+      where: { id: payment.id },
+      relations: {user: true}
     });
   }
 
@@ -106,12 +116,11 @@ export class PaymentService {
     };
   }
 
-  findOne(id: string) {
-    const payment = this.dataSource.manager.findOne(Payment, {
-      where: { id },
-      relations: ['users', 'pakets'],
+  async findOne(id: string) {
+    return await this.dataSource.manager.findOneOrFail(Payment, {
+      where:{id},
+      relations: { user: true, pakets: true}
     });
-    return payment;
   }
 
   async update(id: string, updatePaymentDto: UpdatePaymentDto) {

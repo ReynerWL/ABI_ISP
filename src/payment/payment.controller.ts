@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   Query,
+  Put,
+  HttpStatus,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -39,8 +41,30 @@ export class PaymentController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.paymentService.findOne(id);
+  async findOnePayment(@Param('id') id: string) {
+    return {
+      data: await this.paymentService.findOne(id),
+      statusCode: HttpStatus.OK,
+      message: "Success",
+    }
+  }
+
+  @Put('/rejected/:id')
+  async rejectPayment(@Param('id') id: string, @Body('reason') reason:string){
+    return{
+      data: await this.paymentService.rejectPayment(id, reason),
+      statusCode: HttpStatus.OK,
+      message: "Success"
+    }
+  }
+
+  @Put('/confirmed/:id')
+  async confirmPayment(@Param('id') id: string){
+    return{
+      data: await this.paymentService.confirmPayment(id),
+      statusCode: HttpStatus.OK,
+      message: "Success"
+    }
   }
 
   @Patch(':id')

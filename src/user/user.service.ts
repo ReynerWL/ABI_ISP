@@ -250,7 +250,7 @@ export class UserService {
 
   async update(id: string, updateUserDto: UpdateUserDto) {
     const user = await this.userRepository.findOneOrFail({
-      where: { id },
+      where: {id},
       relations: ['role'],
     });
 
@@ -296,23 +296,24 @@ export class UserService {
       }
     }
 
-    const role = await this.dataSource.manager.findOneOrFail(Role, {
-      where: { name: updateUserDto.role },
-    });
+    // const role = await this.dataSource.manager.findOneOrFail(Role, {
+    //   where: { name: updateUserDto.role },
+    // });
 
     const data = new User();
-
     data.name = updateUserDto.name;
     data.email = updateUserDto.email;
     data.name = updateUserDto.name;
     data.phone_number = updateUserDto.phone_number;
     data.photo_ktp = updateUserDto.photo_ktp;
-    data.role = role;
+    data.pronvisi = "Jawa Barat";
+    data.kota = "Kabupaten Bekasi";
+    data.kecamatan = "Babelan";
     data.salt = randomUUID();
     data.password = await hashPassword(updateUserDto.password, data.salt);
     data.alamat = updateUserDto.alamat;
-    data.status = updateUserDto.status;
-    data.priority = updateUserDto.priority;
+    // data.status = updateUserDto.status;
+    // data.priority = updateUserDto.priority;
 
     await this.userRepository.update(id, data);
 
