@@ -119,13 +119,13 @@ export class WhatsAppService {
    * Get connection status
    */
   getStatus() {
-  return {
-    connected: this.connected,
-    qr: !!this.qrCodeRaw,
-    qrCode: this.qrCode,           // Base64 image (optional)
-    qrCodeAscii: this.qrCodeRaw ? this.getQrCodeAscii() : null,
-  };
-}
+    return {
+      connected: this.connected,
+      qr: !!this.qrCodeRaw,
+      qrCode: this.qrCode, // Base64 image (optional)
+      qrCodeAscii: this.qrCodeRaw ? this.getQrCodeAscii() : null,
+    };
+  }
   /**
    * Get WA client instance
    */

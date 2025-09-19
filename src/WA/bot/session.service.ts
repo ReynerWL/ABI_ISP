@@ -41,7 +41,7 @@ export class SessionService {
   }
 
   async clearAuthState() {
-    const fs = await import('fs').then(m => m.promises);
+    const fs = await import('fs').then((m) => m.promises);
     try {
       await fs.rm(SESSION_DIR, { recursive: true, force: true });
       this.logger.log('🗑️ Session directory deleted');

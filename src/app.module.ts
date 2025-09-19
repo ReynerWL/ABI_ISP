@@ -136,7 +136,7 @@ require('dotenv').config();
     PaymentModule,
     WAModule,
     MailModule,
-    FileModule
+    FileModule,
   ],
 })
 export class AppModule {}

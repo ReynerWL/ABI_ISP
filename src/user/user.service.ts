@@ -231,16 +231,16 @@ export class UserService {
       where: {
         status: 'INACTIVE',
       },
-      relations: ['role','paket','subscription','payment'],
+      relations: ['role', 'paket', 'subscription', 'payment'],
     });
   }
-  
+
   async findActiveUsers() {
     return this.userRepository.find({
       where: {
         status: 'ACTIVE',
       },
-      relations: ['role','paket','subscription','payment'],
+      relations: ['role', 'paket', 'subscription', 'payment'],
     });
   }
 

@@ -39,7 +39,10 @@ export class FileController {
 
     try {
       // Upload buffer to MinIO
-      const fileUrl = await this.minioService.uploadBuffer(file.buffer, fileName);
+      const fileUrl = await this.minioService.uploadBuffer(
+        file.buffer,
+        fileName,
+      );
 
       return {
         statusCode: HttpStatus.OK,

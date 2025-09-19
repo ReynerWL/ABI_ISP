@@ -10,8 +10,7 @@ export class CreatePaymentDto {
   @IsNotEmpty()
   usersId: string;
 
-
-  buktiPembayaran:string;
+  buktiPembayaran: string;
   reason: string;
   status: string;
 }

@@ -39,7 +39,7 @@ export class MinioStorageService {
   async uploadBuffer(
     buffer: Buffer,
     fileName: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
   ): Promise<string> {
     const key = await this.generateKey(fileName);
     const contentType = this.getContentType(fileName);
@@ -56,7 +56,7 @@ export class MinioStorageService {
         key,
         buffer,
         buffer.length,
-        metaData
+        metaData,
       );
 
       return this.getFileUrl(key);
@@ -88,7 +88,7 @@ export class MinioStorageService {
         {
           'Content-Type': file.mimetype,
           'x-amz-acl': 'public-read',
-        }
+        },
       );
 
       const url = this.getFileUrl(key);
@@ -134,7 +134,7 @@ export class MinioStorageService {
       png: 'image/png',
       gif: 'image/gif',
       pdf: 'application/pdf',
-      webp: 'image/webp'
+      webp: 'image/webp',
     };
     return types[ext] || 'application/octet-stream';
   }

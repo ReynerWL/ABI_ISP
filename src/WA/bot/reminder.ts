@@ -35,20 +35,34 @@ export class ReminderService {
       const startDate = new Date(user.subscription?.start_date);
       if (!startDate || isNaN(startDate.getTime())) continue;
 
-      const totalDays = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const totalDays = Math.floor(
+        (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
       const daysLeft = 30 - totalDays;
 
       try {
         // 7 days before expiry → Day 23
         if (daysLeft === 7) {
-          await this.paymentFlow.sendPaymentReminders(this.whatsappClient, user, '7_days');
-          this.logger.log(`🔔 7-day renewal reminder sent to ${user.phone_number}`);
+          await this.paymentFlow.sendPaymentReminders(
+            this.whatsappClient,
+            user,
+            '7_days',
+          );
+          this.logger.log(
+            `🔔 7-day renewal reminder sent to ${user.phone_number}`,
+          );
         }
 
         // 3 days before expiry → Day 27
         if (daysLeft === 3) {
-          await this.paymentFlow.sendPaymentReminders(this.whatsappClient, user, '3_days');
-          this.logger.log(`🔔 3-day renewal reminder sent to ${user.phone_number}`);
+          await this.paymentFlow.sendPaymentReminders(
+            this.whatsappClient,
+            user,
+            '3_days',
+          );
+          this.logger.log(
+            `🔔 3-day renewal reminder sent to ${user.phone_number}`,
+          );
         }
 
         // On Day 30 → Expire & Notify
@@ -62,7 +76,10 @@ export class ReminderService {
           // await this.mikrotikService.blockUser(user.customerId);
         }
       } catch (error) {
-        this.logger.error(`Failed to process user ${user.phone_number}`, error.stack);
+        this.logger.error(
+          `Failed to process user ${user.phone_number}`,
+          error.stack,
+        );
       }
     }
   }

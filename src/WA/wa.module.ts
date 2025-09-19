@@ -41,9 +41,7 @@ import { WhatsAppController } from './wa.controller';
     PaymentFlowService,
     PaymentService,
   ],
-  exports: [
-    WhatsAppService,
-  ],
+  exports: [WhatsAppService],
 })
 export class WAModule {
   constructor(private readonly waService: WhatsAppService) {}

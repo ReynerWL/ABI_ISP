@@ -20,7 +20,7 @@ export class CreateUserDto {
   photo_ktp: string;
 
   @IsNotEmpty()
-  status: 'ACTIVE'|'INACTIVE'|'PENDING'|'BANNED'|'NEW';
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'BANNED' | 'NEW';
 
   @IsNotEmpty()
   role: string;
