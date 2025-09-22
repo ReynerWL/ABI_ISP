@@ -22,5 +22,10 @@ export default () => {
       synchronize: process.env.DATABASE_SYNCHRONIZE === 'true',
       logging: process.env.DATABASE_LOGGING === 'true',
     },
+    MINIO_ACCESS_KEY: 'admin_minio_enuba',
+    MINIO_ENDPOINT: 'file.bangun-kreatif.com',
+    MINIO_SECRET_KEY:' Stop-Test-Difficulty-Pour-4',
+    MINIO_BUCKET: 'abiisp',
+    MINIO_PORT: 443,
   };
 };
