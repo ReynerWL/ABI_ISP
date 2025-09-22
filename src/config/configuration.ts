@@ -24,7 +24,7 @@ export default () => {
     },
     MINIO_ACCESS_KEY: 'admin_minio_enuba',
     MINIO_ENDPOINT: 'file.bangun-kreatif.com',
-    MINIO_SECRET_KEY:' Stop-Test-Difficulty-Pour-4',
+    MINIO_SECRET_KEY: ' Stop-Test-Difficulty-Pour-4',
     MINIO_BUCKET: 'abiisp',
     MINIO_PORT: 443,
   };

@@ -52,7 +52,7 @@ export class MinioStorageService {
         key,
         buffer,
         buffer.length,
-        metaData
+        metaData,
       );
 
       return this.getFileUrl(key);
@@ -74,7 +74,7 @@ export class MinioStorageService {
       jpeg: 'image/jpeg',
       png: 'image/png',
       gif: 'image/gif',
-      webp: 'image/webp'
+      webp: 'image/webp',
     };
     return types[ext] || 'application/octet-stream';
   }
