@@ -6,7 +6,7 @@ export class CreatePaymentDto {
   @IsNotEmpty()
   banksId: string;
   @IsNotEmpty()
-  price: string;
+  price: number;
   @IsNotEmpty()
   usersId: string;
 

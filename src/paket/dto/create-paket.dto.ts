@@ -4,7 +4,7 @@ export class CreatePaketDto {
   @IsNotEmpty()
   name: string;
   @IsNotEmpty()
-  price: string;
+  price: number;
   @IsNotEmpty()
   speed: string;
 }
