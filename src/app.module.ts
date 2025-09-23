@@ -22,6 +22,7 @@ import { join } from 'path';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { MailModule } from './mail/mail.module';
 import { FileModule } from './file/file.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 require('dotenv').config();
 
 @Module({
@@ -137,6 +138,7 @@ require('dotenv').config();
     WAModule,
     MailModule,
     FileModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

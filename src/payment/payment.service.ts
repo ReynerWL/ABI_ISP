@@ -40,7 +40,7 @@ export class PaymentService {
       user: user,
       pakets: paket,
       banks: bank,
-      status: 'Baru',
+      status: 'PENDING',
     });
     return await this.dataSource.manager.save(payment);
   }
