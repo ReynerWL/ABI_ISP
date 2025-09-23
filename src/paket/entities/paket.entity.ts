@@ -19,11 +19,11 @@ export class Paket {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({nullable: true})
   name: string;
 
-  @Column({ type: 'text', nullable: true })
-  price: string;
+  @Column({nullable: true })
+  price: number;
 
   @Column({ type: 'text', nullable: true })
   speed: string;

@@ -17,8 +17,8 @@ export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
-  price: string;
+  @Column({nullable: true})
+  price: number;
 
   @Column({ type: 'text', nullable: true })
   status: string; // PENDING, CONFIRMED, REJECTED

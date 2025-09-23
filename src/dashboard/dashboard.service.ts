@@ -76,7 +76,7 @@ export class DashboardService {
     .getRepository(Payment)
     .createQueryBuilder('payment')
     .select("TO_CHAR(payment.createdAt, 'Mon')", 'month')
-    .addSelect('COUNT(payment.id)', 'count')
+    .addSelect("SUM(payment.price as total)", 'total')
     .where('payment.status =:status', {status: 'PAID'})
     .groupBy("TO_CHAR(payment.createdAt, 'Mon')")
     .orderBy("MIN(payment.createdAt)", 'ASC')
