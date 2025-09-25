@@ -1,7 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { JwtStrategy } from './jwt.strategy';
-import { PrismaService } from './prisma.service';
 
 @Global()
 @Module({
@@ -11,7 +10,7 @@ import { PrismaService } from './prisma.service';
       maxRedirects: 5,
     }),
   ],
-  exports: [HttpModule, PrismaService],
-  providers: [JwtStrategy, PrismaService],
+  exports: [HttpModule, ],
+  providers: [JwtStrategy, ],
 })
 export class CoreModule {}
