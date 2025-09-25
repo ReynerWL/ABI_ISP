@@ -50,7 +50,9 @@ export class AuthController {
   }
 
   @Post('forget-password/validate')
-  async validatePasswordToken(@Body() validatePasswordToken: ValidatePasswordTokenDto) {
+  async validatePasswordToken(
+    @Body() validatePasswordToken: ValidatePasswordTokenDto,
+  ) {
     const data = await this.authService.validatePasswordToken(
       validatePasswordToken.token,
     );

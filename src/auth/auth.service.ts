@@ -108,10 +108,7 @@ export class AuthService {
 
     await Promise.all([
       this.changePassword(validate.email, forgetPasswordDto.new_password),
-      this.tokenRepository.update(
-        { id: validate.id },
-        { status: 'inactive' },
-      ),
+      this.tokenRepository.update({ id: validate.id }, { status: 'inactive' }),
     ]);
   }
 
@@ -189,5 +186,4 @@ export class AuthService {
       where: { token, status: 'active' },
     });
   }
-  
 }
