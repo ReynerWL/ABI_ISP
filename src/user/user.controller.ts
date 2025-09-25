@@ -17,6 +17,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ExtendedRequest } from '#/core/request';
 import { RegisterDto } from './dto/register.dto';
+import { Public } from '#/auth/public.decorator';
 
 @Controller('user')
 export class UserController {
@@ -31,6 +32,7 @@ export class UserController {
     };
   }
 
+  @Public()
   @Post('register')
   async regiter(@Body() registerDto: RegisterDto) {
     return {
@@ -56,6 +58,15 @@ export class UserController {
       page,
       page_size,
     );
+  }
+
+  @Get('detail')
+  async findOneByUser(@Request() req: ExtendedRequest) {
+    return {
+      data: await this.userService.findOneByUser(req.user.id),
+      statusCode: HttpStatus.OK,
+      message: 'success',
+    };
   }
 
   @Get(':id')

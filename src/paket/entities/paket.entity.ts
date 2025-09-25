@@ -28,6 +28,9 @@ export class Paket {
   @Column({ type: 'text', nullable: true })
   speed: string;
 
+  @Column({ type: 'text', nullable: true })
+  photo: string;
+
   @CreateDateColumn({
     type: 'timestamp with time zone',
     nullable: false,

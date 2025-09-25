@@ -9,10 +9,12 @@ import {
   Query,
   Put,
   HttpStatus,
+  Request,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { ExtendedRequest } from '#/core/request';
 
 @Controller('payment')
 export class PaymentController {
@@ -32,6 +34,25 @@ export class PaymentController {
     @Query('limit') limit: number = 10,
   ) {
     return this.paymentService.findAll(
+      query,
+      startDate,
+      endDate,
+      Number(page),
+      Number(limit),
+    );
+  }
+
+  @Get('user')
+  findAllByUser(
+    @Request() req: ExtendedRequest,
+    @Query('query') query?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.paymentService.findAllByUser(
+      req.user.id,
       query,
       startDate,
       endDate,

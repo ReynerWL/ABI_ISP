@@ -82,6 +82,12 @@ export class User {
     type: 'text',
     nullable: true,
   })
+  kelurahan: string;
+
+  @Column({
+    type: 'text',
+    nullable: true,
+  })
   photo_ktp: string;
 
   @Column({

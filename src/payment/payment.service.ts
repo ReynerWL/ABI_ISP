@@ -116,6 +116,41 @@ export class PaymentService {
     };
   }
 
+    async findAllByUser(
+    userId: string,
+    query?: string,
+    startDate?: string,
+    endDate?: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    const qb = this.paymentRepository.createQueryBuilder('payment');
+
+    qb.where('payment.usersId = :userId', { userId });
+
+    if (query) {
+      qb.andWhere('payment.id LIKE :query', { query: `%${query}%` });
+    }
+
+    if (startDate && endDate) {
+      qb.andWhere('payment.createdAt BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      });
+    }
+
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
+  }
+
   async findOne(id: string) {
     return await this.dataSource.manager.findOneOrFail(Payment, {
       where: { id },

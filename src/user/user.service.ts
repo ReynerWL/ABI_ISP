@@ -9,6 +9,9 @@ import { Role } from '#/role/entities/role.entity';
 import { randomUUID } from 'crypto';
 import { hashPassword } from '#/auth/hashpassword';
 import { RegisterDto } from './dto/register.dto';
+import { Payment } from '#/payment/entities/payment.entity';
+import { Paket } from '#/paket/entities/paket.entity';
+import { Bank } from '#/bank/entities/bank.entity';
 
 @Injectable()
 export class UserService {
@@ -16,6 +19,8 @@ export class UserService {
     private dataSource: DataSource,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Payment)
+    private readonly paymentRepository: Repository<Payment>,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -122,9 +127,8 @@ export class UserService {
       }
     }
 
+    //Create User
     const data = new User();
-
-    data.name = registerDto.name;
     data.email = registerDto.email;
     data.name = registerDto.name;
     data.phone_number = registerDto.phone_number;
@@ -133,10 +137,15 @@ export class UserService {
     data.salt = randomUUID();
     data.password = await hashPassword(registerDto.password, data.salt);
     data.status = 'PENDING';
+    data.birth_date = registerDto.birth_date;
+    data.pronvisi = registerDto.province;
+    data.kota = registerDto.city;
+    data.kecamatan = registerDto.district;
+    data.kelurahan = registerDto.sub_district;
+    data.alamat = registerDto.address;
     data.role = await this.dataSource.manager.findOneOrFail(Role, {
       where: { name: 'USER' },
     });
-
     const user_id = (await this.userRepository.count()) + 1;
     const date = new Date();
     const year = date.getFullYear().toString().slice(-2);
@@ -147,10 +156,32 @@ export class UserService {
 
     const result = await this.userRepository.insert(data);
 
+    //Create Payment
+    const payment = new Payment();
+    const paket = await this.dataSource.manager.findOneOrFail(Paket, {
+      where: { id: registerDto.payment.paketsId },
+    });
+    const bank = await this.dataSource.manager.findOneOrFail(Bank, {
+      where: { id: registerDto.payment.banksId },
+    });
+    payment.pakets = paket;
+    payment.banks = bank;
+    payment.user = result.identifiers[0].id;
+    payment.price = registerDto.payment.price;
+    payment.buktiPembayaran = registerDto.payment.buktiPembayaran;
+    payment.status = 'PENDING';
+
+    const paymentRes = await this.paymentRepository.insert(payment);
+
     return {
       data: await this.userRepository.findOne({
         where: { id: result.identifiers[0].id },
       }),
+      payment: await this.paymentRepository.findOne({
+        where: { id: paymentRes.identifiers[0].id },
+        relations: ['pakets', 'banks'],
+      }),
+      Status: HttpStatus.CREATED,
     };
   }
 
@@ -193,6 +224,25 @@ export class UserService {
   async findOne(id: string) {
     const user = await this.userRepository.findOneOrFail({
       where: { id },
+      relations: ['role'],
+    });
+
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'user not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    return user;
+  }
+
+  async findOneByUser(userId: string) {
+    const user = await this.userRepository.findOneOrFail({
+      where: { id: userId },
       relations: ['role'],
     });
 
