@@ -12,6 +12,9 @@ import { JwtAuthGuard } from '#/core/jwt-auth.guard';
 import { ExtendedRequest } from '#/core/request';
 import { LoginDto } from './dto/login.dto';
 import { AuthService } from './auth.service';
+import { SendTokenDto } from './dto/send-token';
+import { ValidatePasswordTokenDto } from './dto/validate-password-token';
+import { ForgetPasswordDto } from './dto/forget-password';
 
 @Controller('auth')
 export class AuthController {
@@ -33,6 +36,39 @@ export class AuthController {
     return {
       message: 'Token Is Valid',
       user: req.user,
+    };
+  }
+
+  @Post('forget-password/send-token')
+  async sendToken(@Body() sendTokenDto: SendTokenDto) {
+    await this.authService.sendToken(sendTokenDto.email);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'success',
+    };
+  }
+
+  @Post('forget-password/validate')
+  async validatePasswordToken(@Body() validatePasswordToken: ValidatePasswordTokenDto) {
+    const data = await this.authService.validatePasswordToken(
+      validatePasswordToken.token,
+    );
+
+    return {
+      data: data ? 'valid' : 'not valid',
+      statusCode: HttpStatus.OK,
+      message: 'success',
+    };
+  }
+
+  @Post('forget-password')
+  async forgetPassword(@Body() forgetPasswordDto: ForgetPasswordDto) {
+    await this.authService.forgetPassword(forgetPasswordDto);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'success',
     };
   }
 }

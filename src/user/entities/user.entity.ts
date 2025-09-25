@@ -15,6 +15,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { PasswordResetToken } from './passwordresettoken';
 
 @Entity('users')
 export class User {
@@ -168,4 +169,7 @@ export class User {
     },
   )
   reportPetugas?: Report[];
+
+  @OneToMany(() => PasswordResetToken, (token) => token.user)
+  resetTokens: PasswordResetToken[];
 }
