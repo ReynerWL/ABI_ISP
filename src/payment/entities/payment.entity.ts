@@ -17,7 +17,7 @@ export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({nullable: true})
+  @Column({ nullable: true })
   price: number;
 
   @Column({ type: 'text', nullable: true })

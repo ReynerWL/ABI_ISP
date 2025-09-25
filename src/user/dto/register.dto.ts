@@ -38,7 +38,7 @@ export class RegisterDto {
   photo_ktp: string;
 
   @IsNotEmpty()
-  payment: paymentDto
+  payment: paymentDto;
 }
 
 export class paymentDto {

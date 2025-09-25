@@ -84,39 +84,75 @@ export class PaymentService {
     });
   }
 
-  async findAll(
-    query?: string,
-    startDate?: string,
-    endDate?: string,
-    page: number = 1,
-    limit: number = 10,
-  ) {
-    const qb = this.paymentRepository.createQueryBuilder('payment');
+// src/payment/payment.service.ts
+async findAll(
+  query?: string,
+  startDate?: string,
+  endDate?: string,
+  bankId?: string,
+  paketId?: string,
+  status?: string,
+  page: number = 1,
+  limit: number = 10,
+) {
+  const qb = this.paymentRepository
+    .createQueryBuilder('payment')
+    .leftJoinAndSelect('payment.user', 'user')
+    .leftJoinAndSelect('payment.bank', 'bank') // ← Join Bank
+    .leftJoinAndSelect('payment.paket', 'paket'); // ← Join Paket
 
-    if (query) {
-      qb.andWhere('payment.id LIKE :query', { query: `%${query}%` });
-    }
-
-    if (startDate && endDate) {
-      qb.andWhere('payment.createdAt BETWEEN :startDate AND :endDate', {
-        startDate,
-        endDate,
-      });
-    }
-
-    qb.skip((page - 1) * limit).take(limit);
-
-    const [data, total] = await qb.getManyAndCount();
-
-    return {
-      data,
-      total,
-      page,
-      limit,
-    };
+  // 🔹 Text Search (general query)
+  if (query) {
+    qb.andWhere(
+      '(payment.id LIKE :query OR ' +
+        'user.name LIKE :query OR ' +
+        'user.customerId LIKE :query OR ' +
+        'bank.name LIKE :query OR ' +
+        'paket.name LIKE :query)',
+      { query: `%${query}%` },
+    );
   }
 
-    async findAllByUser(
+  // 🔹 Date Range Filter
+  if (startDate && endDate) {
+    qb.andWhere('payment.createdAt BETWEEN :startDate AND :endDate', {
+      startDate,
+      endDate,
+    });
+  }
+
+  // 🔹 Filter by Bank (exact match)
+  if (bankId) {
+    qb.andWhere('bank.id = :bankId', { bankId });
+  }
+
+  // 🔹 Filter by Paket (exact match)
+  if (paketId) {
+    qb.andWhere('paket.id = :paketId', { paketId });
+  }
+
+  // 🔹 Filter by Status (exact match)
+  if (status) {
+    qb.andWhere('payment.status = :status', { status });
+  }
+
+  // 🔹 Pagination
+  qb.skip((page - 1) * limit)
+     .take(limit)
+     .orderBy('payment.createdAt', 'DESC');
+
+  const [data, total] = await qb.getManyAndCount();
+
+  return {
+    data,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+  async findAllByUser(
     userId: string,
     query?: string,
     startDate?: string,
