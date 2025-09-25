@@ -28,6 +28,7 @@ export class PaketController {
     @Query('endDate') endDate?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('order') order: 'ASC' | 'DESC' = 'ASC'
   ) {
     return this.paketService.findAll(
       query,
@@ -35,6 +36,7 @@ export class PaketController {
       endDate,
       Number(page),
       Number(limit),
+      order
     );
   }
 

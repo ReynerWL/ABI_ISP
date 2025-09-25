@@ -44,6 +44,7 @@ export class PaketService {
     endDate?: string,
     page: number = 1,
     limit: number = 10,
+    order: 'ASC' | 'DESC' = 'ASC'
   ) {
     const qb = this.paketRepository.createQueryBuilder('paket');
 
@@ -58,6 +59,7 @@ export class PaketService {
       });
     }
 
+    qb.orderBy('paket.speed', order)
     qb.skip((page - 1) * limit).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
