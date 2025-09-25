@@ -76,13 +76,16 @@ export class DashboardService {
     .getRepository(Payment)
     .createQueryBuilder('payment')
     .select("TO_CHAR(payment.createdAt, 'Mon')", 'month')
-    .addSelect("SUM(payment.price as total)", 'total')
+    .addSelect("SUM(payment.price)", 'total')
     .where('payment.status =:status', {status: 'PAID'})
     .groupBy("TO_CHAR(payment.createdAt, 'Mon')")
     .orderBy("MIN(payment.createdAt)", 'ASC')
     .getRawMany()
 
-    console.log(dataTransactions, "trx")
+    const formattedTransactions = dataTransactions.map(trx => ({
+      month: trx.month,
+      total: Number(trx.total)
+    }))
     const datas : DashboardAdmin = {
       totalCustomer: total,
       newCustomer: newCust.length,
@@ -91,8 +94,8 @@ export class DashboardService {
       inactiveCustomer: inactiveCust.length,
       packageInformations: dataPayment,
       needConfirmations: formattedDate,
-      transactionSummary: dataTransactions
+      transactionSummary: formattedTransactions
     }
-    return {datas}
+    return datas
   }
 }
