@@ -126,7 +126,6 @@ require('dotenv').config();
       }),
     }),
     CoreModule,
-    UsersModule,
     HealthModule,
     AuthModule,
     UserModule,
