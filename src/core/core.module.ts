@@ -10,7 +10,7 @@ import { JwtStrategy } from './jwt.strategy';
       maxRedirects: 5,
     }),
   ],
-  exports: [HttpModule, ],
-  providers: [JwtStrategy, ],
+  exports: [HttpModule],
+  providers: [JwtStrategy],
 })
 export class CoreModule {}

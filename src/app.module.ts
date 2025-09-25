@@ -1,14 +1,29 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as Joi from 'joi';
-import { UsersModule } from './users/users.module';
-import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { LoggerModule } from 'nestjs-pino';
 import { HealthModule } from './health/health.module';
 import configuration from './config/configuration';
 import * as pino from 'pino';
 import { CoreModule } from '#/core/core.module';
+import { AuthModule } from './auth/auth.module';
+import { UserModule } from './user/user.module';
+import { RoleModule } from './role/role.module';
+import { BankModule } from './bank/bank.module';
+import { PaketModule } from './paket/paket.module';
+import { SubscriptionModule } from './subscription/subscription.module';
+import { ReportModule } from './report/report.module';
+import { PaymentModule } from './payment/payment.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+import { WAModule } from './WA/wa.module';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { join } from 'path';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { MailModule } from './mail/mail.module';
+import { FileModule } from './file/file.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+require('dotenv').config();
 
 @Module({
   imports: [
@@ -66,13 +81,65 @@ import { CoreModule } from '#/core/core.module';
           .default('development'),
         PORT: Joi.number().default(3000),
         DATABASE_URL: Joi.string(),
-        JWT_PUBLIC_KEY: Joi.string(),
+        JWT_SECRET_KEY: Joi.string(),
       }),
       isGlobal: true,
+    }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        return {
+          type: configService.get<'postgres'>('database.client'),
+          host: configService.get<string>('database.host'),
+          port: configService.get<number>('database.port'),
+          username: configService.get<string>('database.username'),
+          password: configService.get<string>('database.password'),
+          database: configService.get<string>('database.name'),
+          entities: [],
+          synchronize: configService.get<boolean>('database.synchronize'),
+          logging: configService.get<boolean>('database.logging'),
+          autoLoadEntities: true,
+          namingStrategy: new SnakeNamingStrategy(),
+        };
+      },
+      inject: [ConfigService],
+    }),
+    MailerModule.forRootAsync({
+      useFactory: () => ({
+        transport: {
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT) || 587,
+          secure: false,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        },
+        defaults: {
+          from: `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_FROM_EMAIL}>`,
+        },
+        template: {
+          dir: join(__dirname, 'mail/templates'),
+          adapter: new HandlebarsAdapter(),
+          options: { strict: true },
+        },
+      }),
     }),
     CoreModule,
     UsersModule,
     HealthModule,
+    AuthModule,
+    UserModule,
+    RoleModule,
+    BankModule,
+    PaketModule,
+    SubscriptionModule,
+    ReportModule,
+    PaymentModule,
+    WAModule,
+    MailModule,
+    FileModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}
