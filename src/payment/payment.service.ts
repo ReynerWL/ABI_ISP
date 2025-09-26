@@ -69,7 +69,8 @@ export class PaymentService {
   async confirmPayment(paymentId: string) {
     // Logic to confirm a payment
     const payment = await this.dataSource.manager.findOne(Payment, {
-      where: { id: paymentId },relations: { user: {subscription:true}, pakets: true, banks: true },
+      where: { id: paymentId },
+      relations: { user: { subscription: true }, pakets: true, banks: true },
     });
 
     if (!payment) {
@@ -80,12 +81,16 @@ export class PaymentService {
       status: 'CONFIRMED',
     });
 
-    await this.dataSource.manager.update(Subscription, payment.user.subscription.id, {
-      start_date: new Date(),
-      due_date: new Date(new Date().setMonth(new Date().getMonth() + 1)),
-      pakets: payment.pakets,
-      banks: payment.banks,
-    });
+    await this.dataSource.manager.update(
+      Subscription,
+      payment.user.subscription.id,
+      {
+        start_date: new Date(),
+        due_date: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+        pakets: payment.pakets,
+        banks: payment.banks,
+      },
+    );
 
     return await this.dataSource.manager.findOne(Payment, {
       where: { id: payment.id },

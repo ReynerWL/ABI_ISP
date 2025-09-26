@@ -12,5 +12,5 @@ export class CreatePaymentDto {
 
   buktiPembayaran: string;
   reason: string;
-  status: 'PENDING'|'CONFIRMED'|'REJECTED';
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
 }

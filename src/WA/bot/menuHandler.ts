@@ -46,19 +46,27 @@ export class MenuHandlerService {
       // Default fallback
       await this.menuUI.sendMainMenu(client, customerNumber);
     } catch (error) {
-      this.logger.error(`Error handling message from ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Error handling message from ${customerNumber}`,
+        error.stack,
+      );
       await client.sendMessage(customerNumber, {
         text: '❌ An error occurred. Please try again later or contact support.',
       });
     }
   }
 
-  private async handleTextMessage(client: any, customerNumber: string, text: string) {
+  private async handleTextMessage(
+    client: any,
+    customerNumber: string,
+    text: string,
+  ) {
     const userState = this.userStates.get(customerNumber);
 
     // Normalize input
-    const is = (...values: string[]) => values.some(v => text === v);
-    const startsWith = (...values: string[]) => values.some(v => text.startsWith(v));
+    const is = (...values: string[]) => values.some((v) => text === v);
+    const startsWith = (...values: string[]) =>
+      values.some((v) => text.startsWith(v));
 
     // --- Ongoing Flow ---
     if (userState) {
@@ -132,7 +140,11 @@ export class MenuHandlerService {
     });
   }
 
-  private async handleCustomerId(client: any, customerNumber: string, text: string) {
+  private async handleCustomerId(
+    client: any,
+    customerNumber: string,
+    text: string,
+  ) {
     const match = text.match(/cid(\d+)/i);
     if (!match) {
       await client.sendMessage(customerNumber, {
@@ -156,7 +168,9 @@ export class MenuHandlerService {
 
     // Verify phone number
     const userPhone = user.phone_number?.replace(/\D/g, '') || '';
-    const senderPhone = customerNumber.replace(/@c\.us$/, '').replace(/\D/g, '');
+    const senderPhone = customerNumber
+      .replace(/@c\.us$/, '')
+      .replace(/\D/g, '');
 
     if (userPhone !== senderPhone) {
       await client.sendMessage(customerNumber, {
@@ -179,10 +193,18 @@ export class MenuHandlerService {
     );
   }
 
-  private async handlePaymentProof(client: any, customerNumber: string, msg: any) {
+  private async handlePaymentProof(
+    client: any,
+    customerNumber: string,
+    msg: any,
+  ) {
     const userState = this.userStates.get(customerNumber);
 
-    if (!userState || userState.stage !== 'awaiting_proof' || !userState.userId) {
+    if (
+      !userState ||
+      userState.stage !== 'awaiting_proof' ||
+      !userState.userId
+    ) {
       await client.sendMessage(customerNumber, {
         text: '❌ Please start the payment process first. Reply with PAY to begin.',
       });
@@ -196,11 +218,15 @@ export class MenuHandlerService {
     try {
       // Download image buffer
       const imageBuffer = await client.downloadMediaMessage(msg);
-      const originalFileName = msg.message.imageMessage.fileName || 'bukti-pembayaran.jpg';
+      const originalFileName =
+        msg.message.imageMessage.fileName || 'bukti-pembayaran.jpg';
       const sanitizedFileName = `${Date.now()}_${customerNumber.replace(/@c\.us/, '')}_${originalFileName}`;
 
       // Upload to MinIO
-      const fileUrl = await this.minioService.uploadBuffer(imageBuffer, sanitizedFileName);
+      const fileUrl = await this.minioService.uploadBuffer(
+        imageBuffer,
+        sanitizedFileName,
+      );
       this.logger.log(`Image uploaded to MinIO: ${fileUrl}`);
 
       // Find latest subscription
@@ -242,9 +268,14 @@ export class MenuHandlerService {
         await this.mailService.sendPaymentSuccess(user, payment.id, new Date());
       }
 
-      this.logger.log(`Payment proof saved for user ${userState.userId}. URL: ${fileUrl}`);
+      this.logger.log(
+        `Payment proof saved for user ${userState.userId}. URL: ${fileUrl}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to upload payment proof from ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Failed to upload payment proof from ${customerNumber}`,
+        error.stack,
+      );
       await client.sendMessage(customerNumber, {
         text: '❌ Failed to upload image. Please try sending the screenshot again.',
       });

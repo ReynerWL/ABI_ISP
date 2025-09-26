@@ -97,19 +97,36 @@ export class PaymentFlowService {
       try {
         // 7 days before expiry → Day 23
         if (daysLeft === 7) {
-          await this.menuUI.sendSubscriptionReminder(client, `${user.phone_number}@c.us`, 7);
-          await this.mailService.sendSubscriptionReminder(user, this.addDays(today, 7));
+          await this.menuUI.sendSubscriptionReminder(
+            client,
+            `${user.phone_number}@c.us`,
+            7,
+          );
+          await this.mailService.sendSubscriptionReminder(
+            user,
+            this.addDays(today, 7),
+          );
           this.logger.log(`📅 7-day reminder sent to ${user.phone_number}`);
         }
 
         // 3 days before expiry → Day 27
         if (daysLeft === 3) {
-          await this.menuUI.sendSubscriptionReminder(client, `${user.phone_number}@c.us`, 3);
-          await this.mailService.sendSubscriptionReminder(user, this.addDays(today, 3));
+          await this.menuUI.sendSubscriptionReminder(
+            client,
+            `${user.phone_number}@c.us`,
+            3,
+          );
+          await this.mailService.sendSubscriptionReminder(
+            user,
+            this.addDays(today, 3),
+          );
           this.logger.log(`⚠️ 3-day reminder sent to ${user.phone_number}`);
         }
       } catch (error) {
-        this.logger.error(`Failed to send reminder to ${user.phone_number}`, error.stack);
+        this.logger.error(
+          `Failed to send reminder to ${user.phone_number}`,
+          error.stack,
+        );
       }
     }
   }
@@ -127,10 +144,15 @@ export class PaymentFlowService {
 
       if (daysSinceStart >= 30) {
         // Mark as expired
-        await this.dataSource.manager.update(User, user.id, { status: 'INACTIVE' });
+        await this.dataSource.manager.update(User, user.id, {
+          status: 'INACTIVE',
+        });
 
         // Notify
-        await this.menuUI.sendServiceExpired(client, `${user.phone_number}@c.us`);
+        await this.menuUI.sendServiceExpired(
+          client,
+          `${user.phone_number}@c.us`,
+        );
         await this.mailService.sendSubscriptionReminder(user, new Date()); // Optional: "expired" email
 
         this.logger.log(`🔴 Subscription expired for ${user.phone_number}`);
@@ -147,7 +169,10 @@ export class PaymentFlowService {
       await this.mailService.sendSubscriptionReminder(user, new Date());
       this.logger.log(`Sent expired notice to ${user.phone_number}`);
     } catch (error) {
-      this.logger.error(`Failed to notify expired user ${user.phone_number}`, error.stack);
+      this.logger.error(
+        `Failed to notify expired user ${user.phone_number}`,
+        error.stack,
+      );
     }
   }
 

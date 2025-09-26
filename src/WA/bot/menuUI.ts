@@ -73,8 +73,8 @@ export class MenuUIService {
       status === 'ACTIVE'
         ? '🟢 Active – Internet is working'
         : status === 'INACTIVE'
-        ? '🔴 Expired – Payment overdue'
-        : '🟠 Blocked – Contact admin';
+          ? '🔴 Expired – Payment overdue'
+          : '🟠 Blocked – Contact admin';
 
     const due = dueDate ? dueDate.toLocaleDateString() : 'End of month';
 
