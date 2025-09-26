@@ -1,4 +1,4 @@
-// src/WA/bot/menuHandler.ts
+// src/WA/bot/menuHandler.service.ts
 import { Injectable } from '@nestjs/common';
 import { MenuUIService } from './menuUI';
 import { UserService } from '../../user/user.service';
@@ -6,7 +6,7 @@ import { PaymentService } from '../../payment/payment.service';
 import { DataSource } from 'typeorm';
 import { Subscription } from '../../subscription/entities/subscription.entity';
 import { MailService } from '../../mail/mail.service';
-import { MinioStorageService } from '../../file/minio_storage'; // ✅ Add this
+import { MinioStorageService } from '../../file/minio_storage';
 import { Logger } from '@nestjs/common';
 import { User } from '#/user/entities/user.entity';
 import { CreatePaymentDto } from '#/payment/dto/create-payment.dto';
@@ -24,78 +24,115 @@ export class MenuHandlerService {
     private paymentService: PaymentService,
     private menuUI: MenuUIService,
     private mailService: MailService,
-    private minioService: MinioStorageService, // ✅ Inject MinIO service
+    private minioService: MinioStorageService,
     private dataSource: DataSource,
   ) {}
 
   async handleMessage(client: any, customerNumber: string, msg: any) {
     try {
-      if (msg.message?.buttonsResponseMessage) {
-        const buttonId = msg.message.buttonsResponseMessage.selectedButtonId;
-        await this.handleButtonResponse(client, customerNumber, buttonId);
+      // Handle text messages
+      if (msg.message?.conversation) {
+        const text = msg.message.conversation.trim().toLowerCase();
+        await this.handleTextMessage(client, customerNumber, text);
         return;
       }
 
-      if (msg.message?.conversation) {
-        const text = msg.message.conversation.trim();
-
-        if (text.toLowerCase() === 'pay') {
-          await this.menuUI.sendPaymentMenu(client, customerNumber);
-          this.userStates.set(customerNumber, { stage: 'awaiting_cid' });
-          return;
-        }
-
-        const userState = this.userStates.get(customerNumber);
-        if (userState?.stage === 'awaiting_cid') {
-          await this.handleCustomerId(client, customerNumber, text);
-          return;
-        }
-      }
-
+      // Handle image uploads (payment proof)
       if (msg.message?.imageMessage) {
         await this.handlePaymentProof(client, customerNumber, msg);
+        return;
       }
+
+      // Default fallback
+      await this.menuUI.sendMainMenu(client, customerNumber);
     } catch (error) {
-      this.logger.error(
-        `Error handling message from ${customerNumber}`,
-        error.stack,
-      );
+      this.logger.error(`Error handling message from ${customerNumber}`, error.stack);
       await client.sendMessage(customerNumber, {
         text: '❌ An error occurred. Please try again later or contact support.',
       });
     }
   }
 
-  private async handleButtonResponse(
-    client: any,
-    customerNumber: string,
-    buttonId: string,
-  ) {
-    switch (buttonId) {
-      case 'pay':
-        await this.menuUI.sendPaymentMenu(client, customerNumber);
-        this.userStates.set(customerNumber, { stage: 'awaiting_cid' });
-        break;
-      case 'cid':
-        await client.sendMessage(customerNumber, {
-          text: '🆔 Please enter your Customer ID (e.g., CID12345):',
-        });
-        this.userStates.set(customerNumber, { stage: 'awaiting_cid' });
-        break;
-      case 'cancel':
-        await this.menuUI.sendMainMenu(client, customerNumber);
-        this.userStates.delete(customerNumber);
-        break;
-      default:
-        await this.menuUI.sendMainMenu(client, customerNumber);
+  private async handleTextMessage(client: any, customerNumber: string, text: string) {
+    const userState = this.userStates.get(customerNumber);
+
+    // Normalize input
+    const is = (...values: string[]) => values.some(v => text === v);
+    const startsWith = (...values: string[]) => values.some(v => text.startsWith(v));
+
+    // --- Ongoing Flow ---
+    if (userState) {
+      switch (userState.stage) {
+        case 'awaiting_cid_or_proof':
+          if (startsWith('cid')) {
+            await this.handleCustomerId(client, customerNumber, text);
+          } else {
+            await client.sendMessage(customerNumber, {
+              text: 'ℹ️ Please enter your Customer ID (e.g., CID12345) first.',
+            });
+          }
+          return;
+
+        default:
+          break;
+      }
+      return;
     }
+
+    // --- Main Menu Logic ---
+    if (is('1', 'status', 'account', 'cek status')) {
+      await this.handleAccountStatus(client, customerNumber);
+      return;
+    }
+
+    if (is('2', 'pay', 'payment', 'bayar', 'upload')) {
+      await this.menuUI.sendPaymentMenu(client, customerNumber);
+      this.userStates.set(customerNumber, { stage: 'awaiting_cid_or_proof' });
+      return;
+    }
+
+    if (is('3', 'support', 'help', 'cs', 'kontak')) {
+      await this.menuUI.sendSupportContact(client, customerNumber);
+      return;
+    }
+
+    if (is('main', 'menu', 'start', 'home')) {
+      await this.menuUI.sendMainMenu(client, customerNumber);
+      return;
+    }
+
+    // Unknown command → show main menu
+    await this.menuUI.sendMainMenu(client, customerNumber);
   }
 
-  private async handleCustomerId(
-    client: any,
-    customerNumber: string,
-    text: string,
-  ) {
+  private async handleAccountStatus(client: any, customerNumber: string) {
+    const user = await this.findUserByPhone(customerNumber);
+    if (!user) {
+      await client.sendMessage(customerNumber, {
+        text: '❌ We could not find your account. Please contact support.',
+      });
+      return;
+    }
+
+    await this.menuUI.sendAccountStatus(
+      client,
+      customerNumber,
+      user.name,
+      user.paket?.name || 'Standard',
+      user.status,
+      user.subscription?.due_date,
+    );
+  }
+
+  private async findUserByPhone(phoneJid: string): Promise<User | null> {
+    const phone = phoneJid.replace(/@c\.us$/, '').replace(/\D/g, '');
+    return await this.dataSource.manager.findOne(User, {
+      where: { phone_number: phone },
+      relations: ['paket', 'subscription'],
+    });
+  }
+
+  private async handleCustomerId(client: any, customerNumber: string, text: string) {
     const match = text.match(/cid(\d+)/i);
     if (!match) {
       await client.sendMessage(customerNumber, {
@@ -117,10 +154,9 @@ export class MenuHandlerService {
       return;
     }
 
+    // Verify phone number
     const userPhone = user.phone_number?.replace(/\D/g, '') || '';
-    const senderPhone = customerNumber
-      .replace(/@c\.us$/, '')
-      .replace(/\D/g, '');
+    const senderPhone = customerNumber.replace(/@c\.us$/, '').replace(/\D/g, '');
 
     if (userPhone !== senderPhone) {
       await client.sendMessage(customerNumber, {
@@ -143,18 +179,10 @@ export class MenuHandlerService {
     );
   }
 
-  private async handlePaymentProof(
-    client: any,
-    customerNumber: string,
-    msg: any,
-  ) {
+  private async handlePaymentProof(client: any, customerNumber: string, msg: any) {
     const userState = this.userStates.get(customerNumber);
 
-    if (
-      !userState ||
-      userState.stage !== 'awaiting_proof' ||
-      !userState.userId
-    ) {
+    if (!userState || userState.stage !== 'awaiting_proof' || !userState.userId) {
       await client.sendMessage(customerNumber, {
         text: '❌ Please start the payment process first. Reply with PAY to begin.',
       });
@@ -166,20 +194,16 @@ export class MenuHandlerService {
     });
 
     try {
-      // ✅ Step 1: Download image buffer from WhatsApp
+      // Download image buffer
       const imageBuffer = await client.downloadMediaMessage(msg);
-      const originalFileName =
-        msg.message.imageMessage.fileName || 'bukti-pembayaran.jpg';
+      const originalFileName = msg.message.imageMessage.fileName || 'bukti-pembayaran.jpg';
       const sanitizedFileName = `${Date.now()}_${customerNumber.replace(/@c\.us/, '')}_${originalFileName}`;
 
-      // ✅ Step 2: Upload to MinIO
-      const fileUrl = await this.minioService.uploadBuffer(
-        imageBuffer,
-        sanitizedFileName,
-      );
+      // Upload to MinIO
+      const fileUrl = await this.minioService.uploadBuffer(imageBuffer, sanitizedFileName);
       this.logger.log(`Image uploaded to MinIO: ${fileUrl}`);
 
-      // ✅ Step 3: Find latest subscription
+      // Find latest subscription
       const subscription = await this.dataSource.manager.findOne(Subscription, {
         where: { user: { id: userState.userId } },
         relations: ['pakets', 'banks'],
@@ -193,11 +217,11 @@ export class MenuHandlerService {
         return;
       }
 
-      // ✅ Step 4: Create payment with URL (not buffer)
+      // Create payment record
       const paymentData: CreatePaymentDto = {
         usersId: userState.userId,
-        buktiPembayaran: fileUrl, // ✅ Only store URL
-        status: 'pending',
+        buktiPembayaran: fileUrl,
+        status: 'PENDING',
         price: subscription.pakets[0]?.price || null,
         reason: '',
         paketsId: subscription.pakets[0]?.id || null,
@@ -207,25 +231,20 @@ export class MenuHandlerService {
       const payment = await this.paymentService.create(paymentData);
       this.userStates.delete(customerNumber);
 
-      // ✅ Confirm to user
+      // Confirm to user
       await client.sendMessage(customerNumber, {
         text: `✅ Payment proof received!\n\nYour payment is being verified.\nPayment ID: ${payment.id}\nExpected response within 24 hours.`,
       });
 
-      // ✅ Notify admin via email (optional)
+      // Notify admin via email
       const user = await this.userService.findOne(userState.userId);
       if (user?.email) {
         await this.mailService.sendPaymentSuccess(user, payment.id, new Date());
       }
 
-      this.logger.log(
-        `Payment proof uploaded and saved for user ${userState.userId}. URL: ${fileUrl}`,
-      );
+      this.logger.log(`Payment proof saved for user ${userState.userId}. URL: ${fileUrl}`);
     } catch (error) {
-      this.logger.error(
-        `Failed to upload payment proof from ${customerNumber}`,
-        error.stack,
-      );
+      this.logger.error(`Failed to upload payment proof from ${customerNumber}`, error.stack);
       await client.sendMessage(customerNumber, {
         text: '❌ Failed to upload image. Please try sending the screenshot again.',
       });

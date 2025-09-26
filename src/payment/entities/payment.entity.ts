@@ -21,7 +21,7 @@ export class Payment {
   price: number;
 
   @Column({ type: 'text', nullable: true })
-  status: string; // PENDING, CONFIRMED, REJECTED
+  status: 'PENDING'|'CONFIRMED'|'REJECTED'
 
   @Column({ type: 'text', nullable: true })
   buktiPembayaran: string; // URL or path to payment proof image

@@ -52,7 +52,7 @@ export class Subscription {
   )
   user: User;
 
-  @OneToMany(
+  @ManyToOne(
     () => {
       return Paket;
     },
@@ -60,7 +60,7 @@ export class Subscription {
       return paket.subscriptions;
     },
   )
-  pakets?: Paket[];
+  pakets?: Paket
 
   @ManyToOne(
     () => {

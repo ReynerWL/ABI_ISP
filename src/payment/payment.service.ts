@@ -7,6 +7,7 @@ import { User } from '#/user/entities/user.entity';
 import { Bank } from '#/bank/entities/bank.entity';
 import { Paket } from '#/paket/entities/paket.entity';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Subscription } from '#/subscription/entities/subscription.entity';
 
 @Injectable()
 export class PaymentService {
@@ -56,7 +57,7 @@ export class PaymentService {
     }
 
     await this.dataSource.manager.update(Payment, paymentId, {
-      status: 'Rejected',
+      status: 'REJECTED',
       reason: reason,
     });
     return await this.dataSource.manager.findOne(Payment, {
@@ -68,7 +69,7 @@ export class PaymentService {
   async confirmPayment(paymentId: string) {
     // Logic to confirm a payment
     const payment = await this.dataSource.manager.findOne(Payment, {
-      where: { id: paymentId },
+      where: { id: paymentId },relations: { user: {subscription:true}, pakets: true, banks: true },
     });
 
     if (!payment) {
@@ -76,8 +77,16 @@ export class PaymentService {
     }
 
     await this.dataSource.manager.update(Payment, paymentId, {
-      status: 'Aktif',
+      status: 'CONFIRMED',
     });
+
+    await this.dataSource.manager.update(Subscription, payment.user.subscription.id, {
+      start_date: new Date(),
+      due_date: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+      pakets: payment.pakets,
+      banks: payment.banks,
+    });
+
     return await this.dataSource.manager.findOne(Payment, {
       where: { id: payment.id },
       relations: { user: true },

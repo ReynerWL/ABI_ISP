@@ -62,7 +62,7 @@ export class PaketService {
       });
     }
 
-    qb.orderBy('paket.speed', order);
+    qb.orderBy('paket.price', order);
     qb.skip((page - 1) * limit).take(limit);
 
     const [data, total] = await qb.getManyAndCount();

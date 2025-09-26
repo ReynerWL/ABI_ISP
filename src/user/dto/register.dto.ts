@@ -12,19 +12,6 @@ export class PaymentDto {
   @IsNotEmpty()
   buktiPembayaran: string;
 }
-
-export class paymentDto {
-  @IsNotEmpty()
-  paketsId: string;
-  @IsNotEmpty()
-  banksId: string;
-  @IsNotEmpty()
-  price: number;
-  @IsNotEmpty()
-  usersId: string;
-  @IsNotEmpty()
-  buktiPembayaran: string;
-}
 export class RegisterDto {
   @IsNotEmpty()
   email: string;

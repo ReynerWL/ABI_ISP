@@ -69,7 +69,7 @@ export class Paket {
   )
   payments?: Payment[];
 
-  @ManyToOne(
+  @OneToMany(
     () => {
       return Subscription;
     },

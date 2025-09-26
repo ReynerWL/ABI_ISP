@@ -1,11 +1,11 @@
-// src/WA/bot/paymentFlow.ts
+// src/WA/bot/paymentFlow.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { MenuUIService } from './menuUI';
 import { PaymentService } from '../../payment/payment.service';
 import { UserService } from '../../user/user.service';
 import { DataSource } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
-import { MailService } from '../../mail/mail.service'; // ✅ Add this
+import { MailService } from '../../mail/mail.service';
 import { Payment } from '#/payment/entities/payment.entity';
 
 @Injectable()
@@ -16,170 +16,153 @@ export class PaymentFlowService {
     private paymentService: PaymentService,
     private userService: UserService,
     private menuUI: MenuUIService,
-    private mailService: MailService, // ✅ Inject MailService
+    private mailService: MailService,
     private dataSource: DataSource,
   ) {}
 
+  /**
+   * Confirm payment → activate service
+   */
   async confirmPayment(client: any, paymentId: string) {
     try {
-      // Get payment with user
       const payment = await this.dataSource.manager.findOne(Payment, {
         where: { id: paymentId },
         relations: ['user'],
       });
 
-      if (!payment) {
-        this.logger.warn(`Payment not found: ${paymentId}`);
+      if (!payment || !payment.user) {
+        this.logger.warn(`Payment not found or no user linked: ${paymentId}`);
         return;
       }
 
-      const user = await this.userService.findOne(payment.user.id);
-      if (!user) return;
+      const user = payment.user;
 
       // Update user status
-      await this.dataSource.manager.update(User, user.id, {
-        status: 'ACTIVE',
-      });
+      await this.dataSource.manager.update(User, user.id, { status: 'ACTIVE' });
 
-      // Send WhatsApp
+      // Notify user
       await this.menuUI.sendPaymentSuccess(client, `${user.phone_number}@c.us`);
-
-      // Send Email
       await this.mailService.sendPaymentSuccess(user, payment.id, new Date());
 
-      this.logger.log(`Payment confirmed for ${user.customerId}`);
+      this.logger.log(`✅ Payment confirmed for ${user.customerId}`);
     } catch (error) {
       this.logger.error(`Failed to confirm payment ${paymentId}`, error.stack);
     }
   }
 
+  /**
+   * Reject payment → keep expired
+   */
   async rejectPayment(client: any, paymentId: string, reason: string) {
     try {
-      // First reject in DB
+      // Update status first
       await this.paymentService.rejectPayment(paymentId, reason);
 
-      // Then fetch updated payment
       const payment = await this.dataSource.manager.findOne(Payment, {
         where: { id: paymentId },
         relations: ['user'],
       });
 
-      if (!payment) return;
+      if (!payment || !payment.user) return;
 
-      const user = await this.userService.findOne(payment.user.id);
-      if (!user) return;
+      const user = payment.user;
 
-      // Send WhatsApp
+      // Notify user
       await this.menuUI.sendPaymentRejected(
         client,
         `${user.phone_number}@c.us`,
         reason,
       );
-
-      // Send Email
       await this.mailService.sendPaymentRejected(user, reason);
 
-      this.logger.log(`Payment rejected for ${payment.user.id}: ${reason}`); // ✅ Fixed typo
+      this.logger.log(`❌ Payment rejected for ${user.customerId}: ${reason}`);
     } catch (error) {
       this.logger.error(`Failed to reject payment ${paymentId}`, error.stack);
     }
   }
 
+  /**
+   * Daily checker: send reminders at Day 23 (7 left) and Day 27 (3 left)
+   */
+  async sendPaymentReminders(client: any) {
+    const users = await this.userService.findActiveUsers();
+
+    const today = new Date();
+    for (const user of users) {
+      if (!user.subscription?.start_date) continue;
+
+      const daysSinceStart = this.daysSince(user.subscription.start_date);
+      const daysLeft = 30 - daysSinceStart;
+
+      try {
+        // 7 days before expiry → Day 23
+        if (daysLeft === 7) {
+          await this.menuUI.sendSubscriptionReminder(client, `${user.phone_number}@c.us`, 7);
+          await this.mailService.sendSubscriptionReminder(user, this.addDays(today, 7));
+          this.logger.log(`📅 7-day reminder sent to ${user.phone_number}`);
+        }
+
+        // 3 days before expiry → Day 27
+        if (daysLeft === 3) {
+          await this.menuUI.sendSubscriptionReminder(client, `${user.phone_number}@c.us`, 3);
+          await this.mailService.sendSubscriptionReminder(user, this.addDays(today, 3));
+          this.logger.log(`⚠️ 3-day reminder sent to ${user.phone_number}`);
+        }
+      } catch (error) {
+        this.logger.error(`Failed to send reminder to ${user.phone_number}`, error.stack);
+      }
+    }
+  }
+
+  /**
+   * Daily checker: expire users on Day 30+
+   */
   async checkExpiredSubscriptions(client: any) {
-    const expiredUsers = await this.dataSource.manager.find(User, {
-      where: { status: 'INACTIVE' },
-      relations: ['role'],
-    });
+    const users = await this.userService.findActiveUsers();
 
-    for (const user of expiredUsers) {
-      try {
-        await this.menuUI.sendServiceExpired(
-          client,
-          `${user.phone_number}@c.us`,
-        );
-        await this.mailService.sendSubscriptionReminder(user, new Date()); // ✅ Optional: send expired email
+    for (const user of users) {
+      if (!user.subscription?.start_date) continue;
 
-        this.logger.log(`Sent service expired notice to ${user.phone_number}`);
-      } catch (error) {
-        this.logger.error(
-          `Failed to notify ${user.phone_number} about expired subscription`,
-          error.stack,
-        );
+      const daysSinceStart = this.daysSince(user.subscription.start_date);
+
+      if (daysSinceStart >= 30) {
+        // Mark as expired
+        await this.dataSource.manager.update(User, user.id, { status: 'INACTIVE' });
+
+        // Notify
+        await this.menuUI.sendServiceExpired(client, `${user.phone_number}@c.us`);
+        await this.mailService.sendSubscriptionReminder(user, new Date()); // Optional: "expired" email
+
+        this.logger.log(`🔴 Subscription expired for ${user.phone_number}`);
       }
     }
   }
 
-  async sendPaymentReminders(
-    client: any,
-    user: User,
-    type: '7_days' | '3_days',
-  ) {
-    const dueUsers = await this.dataSource.manager.find(User, {
-      where: { id: user.id },
-      relations: ['role', 'subscription'], // ✅ Load subscription
-    });
-
-    const messages = {
-      '7_days': `📅 Reminder: Your subscription will renew in 7 days!\n\nPlease prepare your payment to avoid disconnection.`,
-      '3_days': `⚠️ Urgent: Your subscription ends in 3 days!\n\nPlease renew now to keep your internet active.`,
-    };
-
-    await client.sendMessage(`${user.phone_number}@c.us`, {
-      text: messages[type],
-    });
-
-    for (const user of dueUsers) {
-      if (!user.subscription?.due_date) continue;
-
-      const daysLeft = this.calculateDaysLeft(user.subscription.due_date);
-      if (daysLeft > 5) continue; // Only remind if 5 days or less
-
-      try {
-        await this.menuUI.sendSubscriptionReminder(
-          client,
-          `${user.phone_number}@c.us`,
-          daysLeft,
-        );
-
-        // Send email reminder
-        await this.mailService.sendSubscriptionReminder(
-          user,
-          user.subscription.due_date,
-        );
-
-        this.logger.log(
-          `Sent payment reminder to ${user.phone_number} (${daysLeft} days left)`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Failed to send reminder to ${user.phone_number}`,
-          error.stack,
-        );
-      }
-    }
-  }
-
+  /**
+   * Notify a specific user that their service is expired
+   */
   async notifyExpired(client: any, user: User) {
     try {
       await this.menuUI.sendServiceExpired(client, `${user.phone_number}@c.us`);
-      await this.mailService.sendSubscriptionReminder(user, new Date()); // ✅ Optional: send expired email
-
-      this.logger.log(`Sent service expired notice to ${user.phone_number}`);
+      await this.mailService.sendSubscriptionReminder(user, new Date());
+      this.logger.log(`Sent expired notice to ${user.phone_number}`);
     } catch (error) {
-      this.logger.error(
-        `Failed to notify ${user.phone_number} about expired subscription`,
-        error.stack,
-      );
+      this.logger.error(`Failed to notify expired user ${user.phone_number}`, error.stack);
     }
   }
 
-  private calculateDaysLeft(endDate: Date | string): number {
-    const end = new Date(endDate);
+  // Helper: Days since date
+  private daysSince(date: Date | string): number {
+    const start = new Date(date);
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    end.setHours(0, 0, 0, 0);
+    const diffTime = today.getTime() - start.getTime();
+    return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  }
 
-    const diffTime = end.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // Helper: Add days
+  private addDays(date: Date, days: number): Date {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
   }
 }
