@@ -141,7 +141,7 @@ export class UserService {
     data.kota = registerDto.city;
     data.kecamatan = registerDto.district;
     data.kelurahan = registerDto.sub_district;
-    data.alamat = registerDto.address;
+    data.alamat = registerDto.alamat;
     data.role = await this.dataSource.manager.findOneOrFail(Role, {
       where: { name: 'USER' },
     });
