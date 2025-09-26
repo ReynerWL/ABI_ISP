@@ -26,61 +26,21 @@ export class ReminderService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async handleDailyUserReminders() {
-    if (!this.whatsappClient) return;
+    if (!this.whatsappClient) {
+      this.logger.warn('WhatsApp client not available. Skipping daily reminders.');
+      return;
+    }
 
-    const today = new Date();
-    const users = await this.userService.findActiveUsers();
+    try {
+      // ✅ Send 7-day and 3-day reminders (checks internally)
+      await this.paymentFlow.sendPaymentReminders(this.whatsappClient);
 
-    for (const user of users) {
-      const startDate = new Date(user.subscription?.start_date);
-      if (!startDate || isNaN(startDate.getTime())) continue;
+      // ✅ Expire subscriptions on day 30+
+      await this.paymentFlow.checkExpiredSubscriptions(this.whatsappClient);
 
-      const totalDays = Math.floor(
-        (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      const daysLeft = 30 - totalDays;
-
-      try {
-        // 7 days before expiry → Day 23
-        if (daysLeft === 7) {
-          await this.paymentFlow.sendPaymentReminders(
-            this.whatsappClient,
-            user,
-            '7_days',
-          );
-          this.logger.log(
-            `🔔 7-day renewal reminder sent to ${user.phone_number}`,
-          );
-        }
-
-        // 3 days before expiry → Day 27
-        if (daysLeft === 3) {
-          await this.paymentFlow.sendPaymentReminders(
-            this.whatsappClient,
-            user,
-            '3_days',
-          );
-          this.logger.log(
-            `🔔 3-day renewal reminder sent to ${user.phone_number}`,
-          );
-        }
-
-        // On Day 30 → Expire & Notify
-        if (totalDays >= 30 && user.status === 'ACTIVE') {
-          await this.userService.markAsExpired(user.id);
-          await this.paymentFlow.notifyExpired(this.whatsappClient, user);
-
-          this.logger.log(`🔴 Subscription expired for ${user.phone_number}`);
-
-          // Optional: Block internet via MikroTik
-          // await this.mikrotikService.blockUser(user.customerId);
-        }
-      } catch (error) {
-        this.logger.error(
-          `Failed to process user ${user.phone_number}`,
-          error.stack,
-        );
-      }
+      this.logger.log('✅ Daily user reminders and expiry check completed.');
+    } catch (error) {
+      this.logger.error('❌ Failed to run daily reminders', error.stack);
     }
   }
 }
