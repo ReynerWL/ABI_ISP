@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CreatePaketDto } from './dto/create-paket.dto';
@@ -33,9 +38,7 @@ export class PaketService {
     const paket = this.paketRepository.create(createPaketDto);
     const result = await this.paketRepository.save(paket);
 
-    return {
-      data: result,
-    };
+    return result;
   }
 
   async findAll(
@@ -96,13 +99,7 @@ export class PaketService {
     });
 
     if (!paket) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'paket not found',
-        },
-        HttpStatus.NOT_FOUND,
-      );
+      throw new NotFoundException('Data Paket tidak ditemukan');
     }
 
     if (updatePaketDto.name) {

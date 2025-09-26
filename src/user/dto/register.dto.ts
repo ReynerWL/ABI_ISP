@@ -1,4 +1,17 @@
-import { isNotEmpty, IsNotEmpty } from 'class-validator';
+import { IsNotEmpty } from 'class-validator';
+
+export class PaymentDto {
+  @IsNotEmpty()
+  paketsId: string;
+  @IsNotEmpty()
+  banksId: string;
+  @IsNotEmpty()
+  price: number;
+  @IsNotEmpty()
+  usersId: string;
+  @IsNotEmpty()
+  buktiPembayaran: string;
+}
 
 export class RegisterDto {
   @IsNotEmpty()
@@ -38,18 +51,5 @@ export class RegisterDto {
   photo_ktp: string;
 
   @IsNotEmpty()
-  payment: paymentDto;
-}
-
-export class paymentDto {
-  @IsNotEmpty()
-  paketsId: string;
-  @IsNotEmpty()
-  banksId: string;
-  @IsNotEmpty()
-  price: number;
-  @IsNotEmpty()
-  usersId: string;
-  @IsNotEmpty()
-  buktiPembayaran: string;
+  payment: PaymentDto;
 }

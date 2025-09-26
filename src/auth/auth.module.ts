@@ -12,6 +12,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { UserService } from '#/user/user.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { PasswordResetToken } from '#/user/entities/passwordresettoken';
+import { Payment } from '#/payment/entities/payment.entity';
 
 @Module({
   imports: [
@@ -30,7 +32,7 @@ import { AuthService } from './auth.service';
       },
       inject: [ConfigService],
     }),
-    TypeOrmModule.forFeature([User, Role]),
+    TypeOrmModule.forFeature([User, Role, PasswordResetToken, Payment]),
   ],
   controllers: [AuthController],
   providers: [
