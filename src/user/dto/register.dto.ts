@@ -13,18 +13,6 @@ export class PaymentDto {
   buktiPembayaran: string;
 }
 
-export class paymentDto {
-  @IsNotEmpty()
-  paketsId: string;
-  @IsNotEmpty()
-  banksId: string;
-  @IsNotEmpty()
-  price: number;
-  @IsNotEmpty()
-  usersId: string;
-  @IsNotEmpty()
-  buktiPembayaran: string;
-}
 export class RegisterDto {
   @IsNotEmpty()
   email: string;
@@ -45,16 +33,16 @@ export class RegisterDto {
   alamat: string;
 
   @IsNotEmpty()
-  province: string;
+  provinsi: string;
 
   @IsNotEmpty()
-  city: string;
+  kota: string;
 
   @IsNotEmpty()
-  district: string;
+  kecamatan: string;
 
   @IsNotEmpty()
-  sub_district: string;
+  kelurahan: string;
 
   @IsNotEmpty()
   photo_ktp: string;

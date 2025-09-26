@@ -9,6 +9,7 @@ import { DataSource, Repository } from 'typeorm';
 import { CreatePaketDto } from './dto/create-paket.dto';
 import { UpdatePaketDto } from './dto/update-paket.dto';
 import { Paket } from './entities/paket.entity';
+import { PaginationDto } from '#/utils/pagination.dto';
 
 @Injectable()
 export class PaketService {
@@ -43,35 +44,34 @@ export class PaketService {
 
   async findAll(
     query?: string,
-    startDate?: string,
-    endDate?: string,
-    page: number = 1,
-    limit: number = 10,
     order: 'ASC' | 'DESC' = 'ASC',
+    paginationDto?: PaginationDto,
   ) {
+    const { page, limit } = paginationDto;
     const qb = this.paketRepository.createQueryBuilder('paket');
 
     if (query) {
       qb.andWhere('paket.name LIKE :query', { query: `%${query}%` });
     }
 
-    if (startDate && endDate) {
-      qb.andWhere('paket.createdAt BETWEEN :startDate AND :endDate', {
-        startDate,
-        endDate,
-      });
-    }
+    qb.orderBy('paket.price', order);
 
-    qb.orderBy('paket.speed', order);
-    qb.skip((page - 1) * limit).take(limit);
+    if (paginationDto) {
+      qb.skip((page - 1) * limit).take(limit);
+    }
 
     const [data, total] = await qb.getManyAndCount();
 
-    return {
-      data,
+    const pagination = {
       total,
       page,
       limit,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    return {
+      data,
+      pagination,
     };
   }
 
@@ -81,13 +81,7 @@ export class PaketService {
     });
 
     if (!paket) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'paket not found',
-        },
-        HttpStatus.NOT_FOUND,
-      );
+      throw new NotFoundException('Data Paket tidak ditemukan');
     }
 
     return paket;
