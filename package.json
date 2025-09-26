@@ -5,6 +5,9 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "resolution": {
+    "string-width": "4.2.3"
+  },
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",
@@ -76,7 +79,7 @@
     "typeorm-naming-strategies": "^4.1.0"
   },
   "devDependencies": {
-    "@nestjs/cli": "^10.3.2",
+    "@nestjs/cli": "^11.0.10",
     "@nestjs/schematics": "^10.1.1",
     "@nestjs/testing": "^10.3.3",
     "@types/express": "^4.17.21",
