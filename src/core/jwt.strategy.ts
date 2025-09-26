@@ -17,14 +17,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     id: string;
     name: string;
     email: string;
-    roles?: string[];
+    role: string;
     accesses?: Record<string, boolean>;
   }) {
     return {
       id: payload.id,
       name: payload.name,
       email: payload.email,
-      roles: payload.roles || [],
+      role: payload.role,
       accesses: payload.accesses || {},
     };
   }

@@ -137,10 +137,10 @@ export class UserService {
     data.password = await hashPassword(registerDto.password, data.salt);
     data.status = 'PENDING';
     data.birth_date = registerDto.birth_date;
-    data.provinsi = registerDto.province;
-    data.kota = registerDto.city;
-    data.kecamatan = registerDto.district;
-    data.kelurahan = registerDto.sub_district;
+    data.provinsi = registerDto.provinsi;
+    data.kota = registerDto.kota;
+    data.kecamatan = registerDto.kecamatan;
+    data.kelurahan = registerDto.kelurahan;
     data.alamat = registerDto.alamat;
     data.role = await this.dataSource.manager.findOneOrFail(Role, {
       where: { name: 'USER' },

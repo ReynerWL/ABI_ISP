@@ -35,7 +35,7 @@ export class AuthController {
   async validateToken(@Request() req: ExtendedRequest) {
     return {
       message: 'Token Is Valid',
-      user: req.user,
+      data: req.user,
     };
   }
 
