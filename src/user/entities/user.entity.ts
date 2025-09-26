@@ -65,7 +65,7 @@ export class User {
     type: 'text',
     nullable: true,
   })
-  pronvisi: string;
+  provinsi: string;
 
   @Column({
     type: 'text',

@@ -4,7 +4,6 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { DataSource, Repository } from 'typeorm';
-import { RoleService } from '#/role/role.service';
 import { Role } from '#/role/entities/role.entity';
 import { randomUUID } from 'crypto';
 import { hashPassword } from '#/auth/hashpassword';
@@ -138,7 +137,7 @@ export class UserService {
     data.password = await hashPassword(registerDto.password, data.salt);
     data.status = 'PENDING';
     data.birth_date = registerDto.birth_date;
-    data.pronvisi = registerDto.province;
+    data.provinsi = registerDto.province;
     data.kota = registerDto.city;
     data.kecamatan = registerDto.district;
     data.kelurahan = registerDto.sub_district;
@@ -356,7 +355,7 @@ export class UserService {
     data.name = updateUserDto.name;
     data.phone_number = updateUserDto.phone_number;
     data.photo_ktp = updateUserDto.photo_ktp;
-    data.pronvisi = 'Jawa Barat';
+    data.provinsi = 'Jawa Barat';
     data.kota = 'Kabupaten Bekasi';
     data.kecamatan = 'Babelan';
     data.salt = randomUUID();

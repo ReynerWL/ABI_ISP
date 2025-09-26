@@ -1,4 +1,4 @@
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreatePaketDto {
   @IsNotEmpty()
@@ -7,4 +7,6 @@ export class CreatePaketDto {
   price: number;
   @IsNotEmpty()
   speed: string;
+  @IsOptional()
+  photo: string;
 }

@@ -2,6 +2,7 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MinioStorageService } from './minio_storage';
+import { FileController } from './file.controller';
 
 @Global()
 @Module({
@@ -19,6 +20,7 @@ import { MinioStorageService } from './minio_storage';
       inject: [ConfigService],
     },
   ],
+  controllers: [FileController],
   exports: [MinioStorageService],
 })
 export class FileModule {}

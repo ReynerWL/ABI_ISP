@@ -6,11 +6,13 @@ import {
   UseInterceptors,
   HttpStatus,
   BadRequestException,
+  Body,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import * as mime from 'mime';
 import * as uuid from 'uuid';
 import { MinioStorageService } from './minio_storage';
+import { Public } from '#/auth/public.decorator';
+import { extname } from 'path';
 
 @Controller('file')
 export class FileController {
@@ -19,9 +21,13 @@ export class FileController {
   /**
    * Handle file upload via REST API (e.g., admin dashboard)
    */
+  @Public()
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('type') type: string,
+  ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
@@ -33,9 +39,9 @@ export class FileController {
 
     // Extract query params (via request) – but we need access to req
     // So we'll move filename logic into service or use custom field
-    const extension = mime.extension(file.mimetype);
-    const fileType = file.fieldname; // fallback: use field name like 'avatar', 'proof'
-    const fileName = `${fileType || 'upload'}/${uuid.v4()}.${extension}`;
+    const extension = extname(file.originalname);
+    const fileType = type || 'image';
+    const fileName = `${fileType}/${uuid.v4()}${extension}`;
 
     try {
       // Upload buffer to MinIO
