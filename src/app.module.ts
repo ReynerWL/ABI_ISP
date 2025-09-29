@@ -23,6 +23,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { MailModule } from './mail/mail.module';
 import { FileModule } from './file/file.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { QrisModule } from './qris/qris.module';
 require('dotenv').config();
 
 @Module({
@@ -139,6 +140,7 @@ require('dotenv').config();
     MailModule,
     FileModule,
     DashboardModule,
+    QrisModule,
   ],
 })
 export class AppModule {}

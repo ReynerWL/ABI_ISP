@@ -25,6 +25,12 @@ export class Bank {
   @Column({ type: 'text', nullable: true })
   owner: string;
 
+  @Column({ type: 'text', nullable: true })
+  logo: string;
+
+  @Column({ type: 'text', nullable: true })
+  qr_code: string;
+
   @CreateDateColumn({
     type: 'timestamp with time zone',
     nullable: false,
