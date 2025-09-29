@@ -7,7 +7,7 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import { User, UserStatus } from './entities/user.entity';
 import { DataSource, Repository } from 'typeorm';
 import { Role } from '#/role/entities/role.entity';
 import { randomUUID } from 'crypto';
@@ -122,6 +122,10 @@ export class UserService {
       }
     }
 
+    const paket = await this.dataSource.manager.findOneOrFail(Paket, {
+      where: { id: registerDto.payment.paketsId },
+    });
+
     //Create User
     const data = new User();
     data.email = registerDto.email;
@@ -131,7 +135,6 @@ export class UserService {
     data.photo_ktp = registerDto.photo_ktp;
     data.salt = randomUUID();
     data.password = await hashPassword(registerDto.password, data.salt);
-    data.status = 'PENDING';
     data.birth_date = registerDto.birth_date;
     data.provinsi = registerDto.provinsi;
     data.kota = registerDto.kota;
@@ -141,6 +144,7 @@ export class UserService {
     data.role = await this.dataSource.manager.findOneOrFail(Role, {
       where: { name: 'USER' },
     });
+    data.paket = paket;
     const user_id = (await this.userRepository.count()) + 1;
     const date = new Date();
     const year = date.getFullYear().toString().slice(-2);
@@ -153,9 +157,6 @@ export class UserService {
 
     //Create Payment
     const payment = new Payment();
-    const paket = await this.dataSource.manager.findOneOrFail(Paket, {
-      where: { id: registerDto.payment.paketsId },
-    });
     const bank = await this.dataSource.manager.findOneOrFail(Bank, {
       where: { id: registerDto.payment.banksId },
     });
@@ -184,6 +185,7 @@ export class UserService {
     query: string,
     startDate: string,
     endDate: string,
+    status: string,
     paginationDto: PaginationDto,
   ) {
     const { page, limit } = paginationDto;
@@ -192,6 +194,10 @@ export class UserService {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('user.paket', 'paket');
+
+    if (status) {
+      qb.andWhere('user.status = :status', { status });
+    }
 
     if (query) {
       qb.andWhere('user.name LIKE :query OR user.email LIKE :query', {
@@ -283,7 +289,7 @@ export class UserService {
   async findExpiredUsers() {
     return this.userRepository.find({
       where: {
-        status: 'INACTIVE',
+        status: UserStatus.NONAKTIF,
       },
       relations: ['role', 'paket', 'subscription', 'payment'],
     });
@@ -292,14 +298,14 @@ export class UserService {
   async findActiveUsers() {
     return this.userRepository.find({
       where: {
-        status: 'ACTIVE',
+        status: UserStatus.AKTIF,
       },
       relations: ['role', 'paket', 'subscription', 'payment'],
     });
   }
 
   async markAsExpired(userId: string) {
-    return this.userRepository.update(userId, { status: 'INACTIVE' });
+    return this.userRepository.update(userId, { status: UserStatus.NONAKTIF });
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {

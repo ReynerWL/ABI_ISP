@@ -46,6 +46,7 @@ export class UserController {
   async findAll(
     @Request() req: ExtendedRequest,
     @Query('query') query: string,
+    @Query('status') status: string,
     @Query('start_date') start_date: string,
     @Query('end_date') end_date: string,
     @Query() paginationDto: PaginationDto,
@@ -54,6 +55,7 @@ export class UserController {
       query,
       start_date,
       end_date,
+      status,
       paginationDto,
     );
 

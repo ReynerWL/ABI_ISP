@@ -17,6 +17,14 @@ import {
 } from 'typeorm';
 import { PasswordResetToken } from './passwordresettoken';
 
+export enum UserStatus {
+  AKTIF = 'Aktif',
+  NONAKTIF = 'Nonaktif',
+  BARU = 'Baru',
+  PENDING = 'Pending',
+  DITOLAK = 'Ditolak',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -51,9 +59,9 @@ export class User {
 
   @Column({
     nullable: true,
-    default: 'PENDING',
+    default: UserStatus.PENDING,
   })
-  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'BANNED' | 'NEW';
+  status: UserStatus;
 
   @Column({
     type: 'text',

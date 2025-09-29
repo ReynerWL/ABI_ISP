@@ -1,4 +1,5 @@
-import { isNotEmpty, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsNotEmpty } from 'class-validator';
+import { UserStatus } from '../entities/user.entity';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -20,7 +21,8 @@ export class CreateUserDto {
   photo_ktp: string;
 
   @IsNotEmpty()
-  status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'BANNED' | 'NEW';
+  @IsEnum(UserStatus)
+  status: UserStatus;
 
   @IsNotEmpty()
   role: string;
