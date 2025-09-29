@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { CreateDashboardDto } from './dto/create-dashboard.dto';
-import { UpdateDashboardDto } from './dto/update-dashboard.dto';
 import { Between, DataSource, In } from 'typeorm';
-import { User } from '#/user/entities/user.entity';
+import { User, UserStatus } from '#/user/entities/user.entity';
 import * as dayjs from 'dayjs';
 import { Payment } from '#/payment/entities/payment.entity';
 
@@ -33,11 +31,17 @@ export class DashboardService {
       where: { ...whereCondition, role: { name: 'USER' } },
       relations: { role: true },
     });
-    const newCust = dataCustomer.filter((cust) => cust.status == 'NEW');
-    const pendingCust = dataCustomer.filter((cust) => cust.status == 'PENDING');
-    const activeCust = dataCustomer.filter((cust) => cust.status == 'ACTIVE');
+    const newCust = dataCustomer.filter(
+      (cust) => cust.status == UserStatus.BARU,
+    );
+    const pendingCust = dataCustomer.filter(
+      (cust) => cust.status == UserStatus.PENDING,
+    );
+    const activeCust = dataCustomer.filter(
+      (cust) => cust.status == UserStatus.AKTIF,
+    );
     const inactiveCust = dataCustomer.filter(
-      (cust) => cust.status == 'INACTIVE',
+      (cust) => cust.status == UserStatus.NONAKTIF,
     );
     const total = dataCustomer.length;
 

@@ -45,14 +45,14 @@ export class UserController {
   @Get()
   async findAll(
     @Request() req: ExtendedRequest,
-    @Query('query') query: string,
+    @Query('search') search: string,
     @Query('status') status: string,
     @Query('start_date') start_date: string,
     @Query('end_date') end_date: string,
     @Query() paginationDto: PaginationDto,
   ) {
     const data = await this.userService.findAll(
-      query,
+      search,
       start_date,
       end_date,
       status,

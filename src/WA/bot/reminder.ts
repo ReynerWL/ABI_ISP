@@ -27,7 +27,9 @@ export class ReminderService {
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async handleDailyUserReminders() {
     if (!this.whatsappClient) {
-      this.logger.warn('WhatsApp client not available. Skipping daily reminders.');
+      this.logger.warn(
+        'WhatsApp client not available. Skipping daily reminders.',
+      );
       return;
     }
 

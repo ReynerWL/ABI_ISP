@@ -1,4 +1,5 @@
 // src/WA/bot/menuUI.service.ts
+import { UserStatus } from '#/user/entities/user.entity';
 import { Injectable } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 
@@ -66,13 +67,13 @@ export class MenuUIService {
     to: string,
     name: string,
     paket: string,
-    status: 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'BANNED' | 'NEW',
+    status: UserStatus,
     dueDate?: Date,
   ) {
     const statusMsg =
-      status === 'ACTIVE'
+      status === UserStatus.AKTIF
         ? '🟢 Active – Internet is working'
-        : status === 'INACTIVE'
+        : status === UserStatus.NONAKTIF
           ? '🔴 Expired – Payment overdue'
           : '🟠 Blocked – Contact admin';
 

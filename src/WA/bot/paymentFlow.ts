@@ -4,7 +4,7 @@ import { MenuUIService } from './menuUI';
 import { PaymentService } from '../../payment/payment.service';
 import { UserService } from '../../user/user.service';
 import { DataSource } from 'typeorm';
-import { User } from '../../user/entities/user.entity';
+import { User, UserStatus } from '../../user/entities/user.entity';
 import { MailService } from '../../mail/mail.service';
 import { Payment } from '#/payment/entities/payment.entity';
 
@@ -38,7 +38,9 @@ export class PaymentFlowService {
       const user = payment.user;
 
       // Update user status
-      await this.dataSource.manager.update(User, user.id, { status: 'ACTIVE' });
+      await this.dataSource.manager.update(User, user.id, {
+        status: UserStatus.AKTIF,
+      });
 
       // Notify user
       await this.menuUI.sendPaymentSuccess(client, `${user.phone_number}@c.us`);
@@ -145,7 +147,7 @@ export class PaymentFlowService {
       if (daysSinceStart >= 30) {
         // Mark as expired
         await this.dataSource.manager.update(User, user.id, {
-          status: 'INACTIVE',
+          status: UserStatus.NONAKTIF,
         });
 
         // Notify

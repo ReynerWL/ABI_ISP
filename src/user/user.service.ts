@@ -182,7 +182,7 @@ export class UserService {
   }
 
   async findAll(
-    query: string,
+    search: string,
     startDate: string,
     endDate: string,
     status: string,
@@ -199,10 +199,11 @@ export class UserService {
       qb.andWhere('user.status = :status', { status });
     }
 
-    if (query) {
-      qb.andWhere('user.name LIKE :query OR user.email LIKE :query', {
-        query: `%${query}%`,
-      });
+    if (search) {
+      qb.andWhere(
+        '(user.name ILIKE :search OR user.email ILIKE :search OR user.customerId ILIKE :search)',
+        { search: `%${search}%` },
+      );
     }
 
     if (startDate && endDate) {
