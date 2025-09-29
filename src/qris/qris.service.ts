@@ -32,8 +32,11 @@ export class QrisService {
       productDetail: `Internet Package: ${packageName}`,
       merchantOrderId: orderId,
       customerVaName: 'Pelanggan ISP',
-      callbackUrl: process.env.QRIS_CALLBACK_URL || 'http://localhost:3000/api/qris/callback',
-      returnUrl: process.env.QRIS_RETURN_URL || 'http://localhost:3000/payment/success',
+      callbackUrl:
+        process.env.QRIS_CALLBACK_URL ||
+        'http://localhost:3000/api/qris/callback',
+      returnUrl:
+        process.env.QRIS_RETURN_URL || 'http://localhost:3000/payment/success',
       signature,
     };
 

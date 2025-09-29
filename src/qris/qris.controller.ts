@@ -1,5 +1,11 @@
 // src/qris/qris.controller.ts
-import { Controller, Get, Query, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { QrisService } from './qris.service';
 
 @Controller('api/qris')
@@ -21,10 +27,15 @@ export class QrisController {
       );
     }
 
-    const id = orderId || `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const id =
+      orderId || `PAY-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     try {
-      const result = await this.qrisService.createDynamicQris(packageName, amount, id);
+      const result = await this.qrisService.createDynamicQris(
+        packageName,
+        amount,
+        id,
+      );
       return result;
     } catch (error) {
       throw new HttpException(
@@ -37,7 +48,9 @@ export class QrisController {
   @Get('test')
   testEnv() {
     return {
-      duitkuMerchantCode: process.env.DUITKU_MERCHANT_CODE ? '✅ Set' : '❌ Not set',
+      duitkuMerchantCode: process.env.DUITKU_MERCHANT_CODE
+        ? '✅ Set'
+        : '❌ Not set',
       duitkuApiKey: process.env.DUITKU_API_KEY ? '✅ Set' : '❌ Not set',
       callbackUrl: process.env.QRIS_CALLBACK_URL,
       env: process.env.NODE_ENV,
