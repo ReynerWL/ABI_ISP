@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityNotFoundError, ILike, In, Repository } from 'typeorm';
+import { EntityNotFoundError, In, Repository } from 'typeorm';
 import { User } from '#/user/entities/user.entity';
 import { UserService } from '#/user/user.service';
 import { hashPassword } from './hashpassword';
@@ -48,7 +48,17 @@ export class AuthService {
   async findUser(email: string) {
     try {
       const data = await this.usersRepository.findOneOrFail({
-        where: { email: ILike(email) },
+        where: { email },
+        relations: ['role'],
+        select: [
+          'id',
+          'email',
+          'name',
+          'phone_number',
+          'salt',
+          'password',
+          'role',
+        ],
       });
 
       return data;

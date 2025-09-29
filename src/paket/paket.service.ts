@@ -57,6 +57,7 @@ export class PaketService {
     qb.orderBy('paket.price', order);
 
     qb.orderBy('paket.price', order);
+
     if (paginationDto) {
       qb.skip((page - 1) * limit).take(limit);
     }

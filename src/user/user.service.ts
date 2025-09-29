@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,6 +16,7 @@ import { RegisterDto } from './dto/register.dto';
 import { Payment } from '#/payment/entities/payment.entity';
 import { Paket } from '#/paket/entities/paket.entity';
 import { Bank } from '#/bank/entities/bank.entity';
+import { PaginationDto } from '#/utils/pagination.dto';
 
 @Injectable()
 export class UserService {
@@ -99,12 +105,8 @@ export class UserService {
           where: { email: registerDto.email },
         })
       ) {
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.BAD_REQUEST,
-            error: 'email already used',
-          },
-          HttpStatus.BAD_REQUEST,
+        throw new BadRequestException(
+          'Email ini sudah terdaftar, silahkan gunakan email lain',
         );
       }
     }
@@ -116,13 +118,7 @@ export class UserService {
           where: { phone_number: registerDto.phone_number },
         })
       ) {
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.BAD_REQUEST,
-            error: 'phone number already used',
-          },
-          HttpStatus.BAD_REQUEST,
-        );
+        throw new BadRequestException('Nomor telepon ini sudah terdaftar');
       }
     }
 
@@ -188,12 +184,14 @@ export class UserService {
     query: string,
     startDate: string,
     endDate: string,
-    page: number = 1,
-    limit: number = 10,
+    paginationDto: PaginationDto,
   ) {
+    const { page, limit } = paginationDto;
+
     const qb = this.userRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.role', 'role');
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.paket', 'paket');
 
     if (query) {
       qb.andWhere('user.name LIKE :query OR user.email LIKE :query', {
@@ -208,15 +206,22 @@ export class UserService {
       });
     }
 
-    qb.skip((page - 1) * limit).take(limit);
+    if (paginationDto) {
+      qb.skip((page - 1) * limit).take(limit);
+    }
 
     const [data, total] = await qb.getManyAndCount();
 
-    return {
-      data,
+    const pagination = {
       total,
       page,
       limit,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    return {
+      data,
+      pagination,
     };
   }
 

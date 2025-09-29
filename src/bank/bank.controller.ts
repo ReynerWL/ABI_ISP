@@ -11,6 +11,7 @@ import {
 import { BankService } from './bank.service';
 import { CreateBankDto } from './dto/create-bank.dto';
 import { UpdateBankDto } from './dto/update-bank.dto';
+import { Public } from '#/auth/public.decorator';
 
 @Controller('bank')
 export class BankController {
@@ -21,6 +22,7 @@ export class BankController {
     return this.bankService.create(createBankDto);
   }
 
+  @Public()
   @Get()
   findAll(
     @Query('query') query?: string,

@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   HttpStatus,
@@ -18,6 +17,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ExtendedRequest } from '#/core/request';
 import { RegisterDto } from './dto/register.dto';
 import { Public } from '#/auth/public.decorator';
+import { PaginationDto } from '#/utils/pagination.dto';
 
 @Controller('user')
 export class UserController {
@@ -48,16 +48,20 @@ export class UserController {
     @Query('query') query: string,
     @Query('start_date') start_date: string,
     @Query('end_date') end_date: string,
-    @Query('page') page: number,
-    @Query('page_size') page_size: number = 10,
+    @Query() paginationDto: PaginationDto,
   ) {
-    return await this.userService.findAll(
+    const data = await this.userService.findAll(
       query,
       start_date,
       end_date,
-      page,
-      page_size,
+      paginationDto,
     );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'success',
+      ...data,
+    };
   }
 
   @Get('detail')

@@ -41,12 +41,12 @@ export class User {
   })
   birth_date: string;
 
+  @Column({ select: false })
   @Exclude()
-  @Column()
   password: string;
 
+  @Column({ select: false })
   @Exclude()
-  @Column()
   salt: string;
 
   @Column({
