@@ -8,8 +8,6 @@ export class PaymentDto {
   @IsNotEmpty()
   price: number;
   @IsNotEmpty()
-  usersId: string;
-  @IsNotEmpty()
   buktiPembayaran: string;
 }
 

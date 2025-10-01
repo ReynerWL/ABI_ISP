@@ -81,14 +81,14 @@ export class PaymentService {
       status: 'CONFIRMED',
     });
 
-    await this.dataSource.manager.update(
+    await this.dataSource.manager.save(
       Subscription,
-      payment.user.subscription.id,
       {
         start_date: new Date(),
         due_date: new Date(new Date().setMonth(new Date().getMonth() + 1)),
         pakets: payment.pakets,
         banks: payment.banks,
+        user: payment.user,
       },
     );
 
@@ -189,6 +189,10 @@ export class PaymentService {
       });
     }
 
+    qb.leftJoinAndSelect('payment.pakets', 'pakets')
+      .leftJoinAndSelect('payment.banks', 'banks')
+      .leftJoinAndSelect('payment.user', 'user')
+
     qb.skip((page - 1) * limit).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
@@ -204,7 +208,7 @@ export class PaymentService {
   async findOne(id: string) {
     return await this.dataSource.manager.findOneOrFail(Payment, {
       where: { id },
-      relations: { user: true, pakets: true },
+      relations: { user: true, pakets: true,banks:true },
     });
   }
 

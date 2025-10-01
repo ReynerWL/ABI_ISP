@@ -30,7 +30,7 @@ export class AuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Public()
   @Get('validate-token')
   async validateToken(@Request() req: ExtendedRequest) {
     return {

@@ -1,46 +1,83 @@
-# PRODUCTION DOCKERFILE
-# ---------------------
-# This Dockerfile allows to build a Docker image of the NestJS application
-# and based on a NodeJS 16 image. The multi-stage mechanism allows to build
-# the application in a "builder" stage and then create a lightweight production
-# image containing the required dependencies and the JS build files.
-#
-# Dockerfile best practices
-# https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
-# Dockerized NodeJS best practices
-# https://github.com/nodejs/docker-node/blob/master/docs/BestPractices.md
-# https://www.bretfisher.com/node-docker-good-defaults/
-# http://goldbergyoni.com/checklist-best-practice-of-node-js-in-production/
+# ================================
+# Stage 1: Get oauth2l binary
+# ================================
+FROM gcr.io/oauth2l/oauth2l AS auth-tool
 
-FROM node:20-alpine as builder
+# ================================
+# Stage 2: Builder
+# ================================
+FROM node:20-slim AS app-builder
 
-ENV NODE_ENV build
+ENV NODE_ENV=build
 
-USER node
 WORKDIR /home/node
 
-COPY package.json .
-COPY yarn.lock .
+# Install build tools
+RUN apt-get update && \
+    apt-get install -y python3 build-essential git && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN yarn install --frozen-lockfile
+# Copy package files only
+COPY package.json yarn.lock ./
 
-COPY . /home/node
+# Set environment
+ENV HUSKY=0 \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-RUN yarn run build \
-    && yarn install --production --ignore-scripts --prefer-offline
+# Install ALL dependencies
+RUN yarn install --frozen-lockfile --ignore-scripts
 
-RUN npx prisma generate
-# ---
+# Copy source code
+COPY . .
 
-FROM node:20-alpine
+# Build app
+RUN yarn run build
 
-ENV NODE_ENV production
+# Cleanup
+RUN rm -rf \
+    node_modules/.cache \
+    __tests__ \
+    coverage \
+    docs \
+    examples \
+    *.log \
+    && yarn cache clean
 
-USER node
+# ================================
+# Stage 3: Final Runtime
+# ================================
+FROM node:20-slim AS app-runner
+
+ENV NODE_ENV=production
+
+USER root
 WORKDIR /home/node
 
-COPY --from=builder /home/node/package*.json /home/node/
-COPY --from=builder /home/node/node_modules/ /home/node/node_modules/
-COPY --from=builder /home/node/dist/ /home/node/dist/
+# ✅ Copy oauth2l from 'auth-tool'
+COPY --from=auth-tool /bin/oauth2l /bin/oauth2l
+
+# ✅ Copy dist only
+COPY --from=app-builder /home/node/dist ./dist
+
+# ✅ Install system deps
+RUN apt-get update && \
+    apt-get install -y git curl chromium && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# ✅ Reinstall only production dependencies
+RUN yarn install --production --frozen-lockfile --prefer-offline && \
+    yarn cache clean && \
+    mkdir -p ~/.config
+
+# Switch to non-root user
+USER node
+
+# Puppeteer settings
+ENV PUPPETEER_SKIP_DOWNLOAD=false \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    XDG_CONFIG_HOME=/tmp/.chromium \
+    XDG_CACHE_HOME=/tmp/.chromium
 
 CMD ["node", "dist/main.js"]

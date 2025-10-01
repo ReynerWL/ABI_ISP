@@ -1,21 +1,33 @@
-# Versioning and metadata
+# .dockerignore
+node_modules
+dist
 .git
 .gitignore
-.dockerignore
-
-# Build dependencies
-dist
-node_modules
-coverage
-
-# Environment (contains sensitive data)
+.vscode
 .env
-
-# Files not required for production
-.editorconfig
-Dockerfile
+.env.local
 README.md
-tslint.json
-nodemon.json
-.idea
-k8s
+Dockerfile
+.dockerignore
+test
+__tests__
+coverage
+.nyc_output
+*.log
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CI
+.circleci
+.github
+.gitlab
+
+# Prevent any temp files
+tmp/
+temp/
+.cache/

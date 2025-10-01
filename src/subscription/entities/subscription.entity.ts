@@ -1,11 +1,13 @@
 import { Bank } from '#/bank/entities/bank.entity';
 import { Paket } from '#/paket/entities/paket.entity';
 import { User } from '#/user/entities/user.entity';
+import Joi from 'joi';
 import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   OneToOne,
@@ -50,6 +52,7 @@ export class Subscription {
       return user.subscription;
     },
   )
+  @JoinColumn()
   user: User;
 
   @ManyToOne(

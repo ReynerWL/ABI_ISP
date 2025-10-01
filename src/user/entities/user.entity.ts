@@ -9,6 +9,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   OneToOne,
@@ -153,9 +154,15 @@ export class User {
   )
   payments: Payment[];
 
-  @OneToOne(() => {
-    return Subscription;
-  })
+ @OneToOne(
+    () => {
+      return Subscription;
+    },
+    (subscription) => {
+      return subscription.user;
+    },
+  )
+  @JoinColumn()
   subscription: Subscription;
 
   @OneToMany(

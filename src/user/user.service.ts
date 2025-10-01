@@ -8,7 +8,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User, UserStatus } from './entities/user.entity';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, ILike, Like, Repository } from 'typeorm';
 import { Role } from '#/role/entities/role.entity';
 import { randomUUID } from 'crypto';
 import { hashPassword } from '#/auth/hashpassword';
@@ -142,7 +142,7 @@ export class UserService {
     data.kelurahan = registerDto.kelurahan;
     data.alamat = registerDto.alamat;
     data.role = await this.dataSource.manager.findOneOrFail(Role, {
-      where: { name: 'USER' },
+      where: { name: ILike(`%user%`) },
     });
     data.paket = paket;
     const user_id = (await this.userRepository.count()) + 1;
@@ -254,7 +254,7 @@ export class UserService {
   async findOneByUser(userId: string) {
     const user = await this.userRepository.findOneOrFail({
       where: { id: userId },
-      relations: ['role'],
+      relations: { role: true, paket: true, payments: true, subscription: true },
     });
 
     if (!user) {
@@ -273,7 +273,7 @@ export class UserService {
   async findByCustomerId(customerId: string) {
     const user = await this.userRepository.findOne({
       where: { id: customerId, role: { name: 'CUSTOMER' } },
-      relations: ['role'],
+      relations: ['role','payment','paket','subscription'],
     });
     if (!user) {
       throw new HttpException(
