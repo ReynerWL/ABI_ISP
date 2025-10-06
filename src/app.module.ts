@@ -120,7 +120,7 @@ require('dotenv').config();
           from: `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_FROM_EMAIL}>`,
         },
         template: {
-          dir: join(__dirname, 'mail/templates'),
+          dir: join(__dirname, 'src/templates'),
           adapter: new HandlebarsAdapter(),
           options: { strict: true },
         },
