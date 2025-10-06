@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: abi-isp-be
-          image: registry.empatnusabangsa.com/empatnusabangsa/abi-isp-be:<VERSION>
+          image: git.empatnusabangsa.com/empatnusabangsa/abi-isp-be:<VERSION>
           ports:
             - containerPort: 5000
           envFrom:
