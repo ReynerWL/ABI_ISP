@@ -64,7 +64,7 @@ export class Paket {
       return Payment;
     },
     (payment) => {
-      return payment.pakets;
+      return payment.paket;
     },
   )
   payments?: Payment[];

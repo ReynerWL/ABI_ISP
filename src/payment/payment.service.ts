@@ -39,8 +39,8 @@ export class PaymentService {
     const payment = this.dataSource.manager.create(Payment, {
       ...createPaymentDto,
       user: user,
-      pakets: paket,
-      banks: bank,
+      paket: paket,
+      bank: bank,
       status: 'PENDING',
     });
     return await this.dataSource.manager.save(payment);
@@ -70,7 +70,7 @@ export class PaymentService {
     // Logic to confirm a payment
     const payment = await this.dataSource.manager.findOne(Payment, {
       where: { id: paymentId },
-      relations: { user: { subscription: true }, pakets: true, banks: true },
+      relations: { user: { subscription: true }, paket: true, bank: true },
     });
 
     if (!payment) {
@@ -86,8 +86,8 @@ export class PaymentService {
       {
         start_date: new Date(),
         due_date: new Date(new Date().setMonth(new Date().getMonth() + 1)),
-        pakets: payment.pakets,
-        banks: payment.banks,
+        pakets: payment.paket,
+        banks: payment.bank,
         user: payment.user,
       },
     );
@@ -208,7 +208,7 @@ export class PaymentService {
   async findOne(id: string) {
     return await this.dataSource.manager.findOneOrFail(Payment, {
       where: { id },
-      relations: { user: true, pakets: true,banks:true },
+      relations: { user: true, paket: true,bank:true },
     });
   }
 

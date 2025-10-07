@@ -65,7 +65,7 @@ export class Payment {
       return paket.payments;
     },
   )
-  pakets?: Paket;
+  paket?: Paket;
 
   @ManyToOne(
     () => {
@@ -75,5 +75,5 @@ export class Payment {
       return bank.payments;
     },
   )
-  banks?: Bank;
+  bank?: Bank;
 }

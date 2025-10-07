@@ -54,7 +54,7 @@ export class Bank {
       return Payment;
     },
     (payment) => {
-      return payment.banks;
+      return payment.bank;
     },
   )
   payments?: Payment[];

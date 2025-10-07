@@ -160,8 +160,8 @@ export class UserService {
     const bank = await this.dataSource.manager.findOneOrFail(Bank, {
       where: { id: registerDto.payment.banksId },
     });
-    payment.pakets = paket;
-    payment.banks = bank;
+    payment.paket = paket;
+    payment.bank = bank;
     payment.user = result.identifiers[0].id;
     payment.price = registerDto.payment.price;
     payment.buktiPembayaran = registerDto.payment.buktiPembayaran;
