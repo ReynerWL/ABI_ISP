@@ -193,92 +193,102 @@ export class MenuHandlerService {
     );
   }
 
-  private async handlePaymentProof(
-    client: any,
-    customerNumber: string,
-    msg: any,
+private async handlePaymentProof(
+  client: any,
+  customerNumber: string,
+  msg: any,
+) {
+  const userState = this.userStates.get(customerNumber);
+
+  if (
+    !userState ||
+    userState.stage !== 'awaiting_proof' ||
+    !userState.userId
   ) {
-    const userState = this.userStates.get(customerNumber);
-
-    if (
-      !userState ||
-      userState.stage !== 'awaiting_proof' ||
-      !userState.userId
-    ) {
-      await client.sendMessage(customerNumber, {
-        text: '❌ Please start the payment process first. Reply with PAY to begin.',
-      });
-      return;
-    }
-
     await client.sendMessage(customerNumber, {
-      text: '🔄 Processing payment proof... Uploading image.',
+      text: '❌ Please start the payment process first. Reply with PAY to begin.',
+    });
+    return;
+  }
+
+  await client.sendMessage(customerNumber, {
+    text: '🔄 Processing payment proof... Uploading image.',
+  });
+
+  try {
+    // Download image buffer
+    const imageBuffer = await client.downloadMediaMessage(msg);
+    const originalFileName =
+      msg.message.imageMessage.fileName || 'bukti-pembayaran.jpg';
+    const sanitizedFileName = `${Date.now()}_${customerNumber.replace(/@c\.us/, '')}_${originalFileName}`;
+
+    // Upload to MinIO
+    const fileUrl = await this.minioService.uploadBuffer(
+      imageBuffer,
+      sanitizedFileName,
+    );
+    this.logger.log(`Image uploaded to MinIO: ${fileUrl}`);
+
+    // Find latest subscription
+    const latestSubscription = await this.dataSource.manager.findOne(Subscription, {
+      where: { user: { id: userState.userId } },
+      relations: ['pakets', 'banks'],
+      order: { createdAt: 'DESC' },
     });
 
-    try {
-      // Download image buffer
-      const imageBuffer = await client.downloadMediaMessage(msg);
-      const originalFileName =
-        msg.message.imageMessage.fileName || 'bukti-pembayaran.jpg';
-      const sanitizedFileName = `${Date.now()}_${customerNumber.replace(/@c\.us/, '')}_${originalFileName}`;
+    let startDate: Date;
+    let dueDate: Date;
 
-      // Upload to MinIO
-      const fileUrl = await this.minioService.uploadBuffer(
-        imageBuffer,
-        sanitizedFileName,
-      );
-      this.logger.log(`Image uploaded to MinIO: ${fileUrl}`);
-
-      // Find latest subscription
-      const subscription = await this.dataSource.manager.findOne(Subscription, {
-        where: { user: { id: userState.userId } },
-        relations: ['pakets', 'banks'],
-        order: { createdAt: 'DESC' },
-      });
-
-      if (!subscription) {
-        await client.sendMessage(customerNumber, {
-          text: '❌ No active subscription found. Please contact support.',
-        });
-        return;
-      }
-
-      // Create payment record
-      const paymentData: CreatePaymentDto = {
-        usersId: userState.userId,
-        buktiPembayaran: fileUrl,
-        status: 'PENDING',
-        price: subscription.pakets[0]?.price || null,
-        reason: '',
-        paketsId: subscription.pakets[0]?.id || null,
-        banksId: subscription.banks?.id || null,
-      };
-
-      const payment = await this.paymentService.create(paymentData);
-      this.userStates.delete(customerNumber);
-
-      // Confirm to user
-      await client.sendMessage(customerNumber, {
-        text: `✅ Payment proof received!\n\nYour payment is being verified.\nPayment ID: ${payment.id}\nExpected response within 24 hours.`,
-      });
-
-      // Notify admin via email
-      const user = await this.userService.findOne(userState.userId);
-      if (user?.email) {
-        await this.mailService.sendPaymentSuccess(user, payment.id, new Date());
-      }
-
-      this.logger.log(
-        `Payment proof saved for user ${userState.userId}. URL: ${fileUrl}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to upload payment proof from ${customerNumber}`,
-        error.stack,
-      );
-      await client.sendMessage(customerNumber, {
-        text: '❌ Failed to upload image. Please try sending the screenshot again.',
-      });
+    if (!latestSubscription || latestSubscription.due_date < new Date()) {
+      // 🆕 First-time or expired → Start today
+      startDate = new Date();
+      dueDate = new Date(startDate);
+      dueDate.setDate(dueDate.getDate() + 30); // 30 days from today
+    } else {
+      // 🔁 Renewal → Start after old due date
+      startDate = new Date(latestSubscription.due_date);
+      dueDate = new Date(startDate);
+      dueDate.setDate(dueDate.getDate() + 30); // 30 days from previous end
     }
+
+    // Create payment record
+    const paymentData: CreatePaymentDto = {
+      usersId: userState.userId,
+      buktiPembayaran: fileUrl,
+      status: 'PENDING',
+      price: latestSubscription?.pakets[0]?.price || null,
+      reason: '',
+      paketsId: latestSubscription?.pakets[0]?.id || null,
+      banksId: latestSubscription?.banks?.id || null,
+      start_date: startDate,
+      due_date: dueDate,
+    };
+
+    const payment = await this.paymentService.create(paymentData);
+    this.userStates.delete(customerNumber);
+
+    // Confirm to user
+    await client.sendMessage(customerNumber, {
+      text: `✅ Payment proof received!\n\nYour payment is being verified.\nPayment ID: ${payment.id}\nExpected response within 24 hours.`,
+    });
+
+    // Notify admin via email
+    const user = await this.userService.findOne(userState.userId);
+    if (user?.email) {
+      await this.mailService.sendPaymentSuccess(user, payment.id, new Date());
+    }
+
+    this.logger.log(
+      `Payment proof saved for user ${userState.userId}. URL: ${fileUrl}`,
+    );
+  } catch (error) {
+    this.logger.error(
+      `Failed to upload payment proof from ${customerNumber}`,
+      error.stack,
+    );
+    await client.sendMessage(customerNumber, {
+      text: '❌ Failed to upload image. Please try sending the screenshot again.',
+    });
   }
+}
 }

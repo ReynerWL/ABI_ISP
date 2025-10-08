@@ -66,38 +66,63 @@ export class PaymentService {
     });
   }
 
-  async confirmPayment(paymentId: string) {
-    // Logic to confirm a payment
-    const payment = await this.dataSource.manager.findOne(Payment, {
-      where: { id: paymentId },
-      relations: { user: { subscription: true }, paket: true, bank: true },
-    });
+async confirmPayment(paymentId: string) {
+  const payment = await this.dataSource.manager.findOne(Payment, {
+    where: { id: paymentId },
+    relations: ['user', 'paket', 'bank'],
+  });
 
-    if (!payment) {
-      throw new Error('Payment not found');
-    }
-
-    await this.dataSource.manager.update(Payment, paymentId, {
-      status: 'CONFIRMED',
-    });
-
-    await this.dataSource.manager.save(
-      Subscription,
-      {
-        start_date: new Date(),
-        due_date: new Date(new Date().setMonth(new Date().getMonth() + 1)),
-        pakets: payment.paket,
-        banks: payment.bank,
-        user: payment.user,
-      },
-    );
-
-    return await this.dataSource.manager.findOne(Payment, {
-      where: { id: payment.id },
-      relations: { user: true },
-    });
+  if (!payment) {
+    throw new Error('Payment not found');
   }
 
+  // Get user's latest active subscription
+  const latestSubscription = await this.dataSource.manager.findOne(Subscription, {
+    where: { user: { id: payment.user.id } },
+    order: { start_date: 'DESC' },
+    relations: ['user'],
+  });
+
+  let startDate: Date;
+  let dueDate: Date;
+
+  if (!latestSubscription || latestSubscription.due_date < new Date()) {
+    // 🆕 First-time or expired → Start today
+    startDate = new Date();
+    dueDate = new Date(startDate);
+    dueDate.setDate(dueDate.getDate() + 30); // 30 days from today
+  } else {
+    // 🔁 Renewal → Start after old due date
+    startDate = new Date(latestSubscription.due_date);
+    dueDate = new Date(startDate);
+    dueDate.setDate(dueDate.getDate() + 30); // 30 days from previous end
+  }
+
+  // ✅ Convert to ISO string for PostgreSQL compatibility
+  const startDateStr = startDate.toISOString();
+  const dueDateStr = dueDate.toISOString();
+
+  // ✅ Create new subscription
+  await this.dataSource.manager.save(Subscription, {
+    start_date: startDateStr,
+    due_date: dueDateStr,
+    pakets: payment.paket,
+    banks: payment.bank,
+    user: payment.user,
+  });
+
+  // ✅ Update payment status
+  await this.paymentRepository.update(paymentId, {
+    status: 'CONFIRMED',
+    start_date: startDateStr,
+    due_date: dueDateStr,
+  });
+
+  return await this.dataSource.manager.findOne(Payment, {
+    where: { id: payment.id },
+    relations: {user:{subscription:true}, paket: true, bank: true }
+  });
+}
   // src/payment/payment.service.ts
   async findAll(
     query?: string,
@@ -112,8 +137,9 @@ export class PaymentService {
     const qb = this.paymentRepository
       .createQueryBuilder('payment')
       .leftJoinAndSelect('payment.user', 'user')
-      .leftJoinAndSelect('payment.bank', 'bank') // ← Join Bank
-      .leftJoinAndSelect('payment.paket', 'paket'); // ← Join Paket
+      .leftJoinAndSelect('user.subscription', 'subscription')
+      .leftJoinAndSelect('payment.bank', 'bank')
+      .leftJoinAndSelect('payment.paket', 'paket')
 
     // 🔹 Text Search (general query)
     if (query) {
@@ -174,7 +200,7 @@ export class PaymentService {
     page: number = 1,
     limit: number = 10,
   ) {
-    const qb = this.paymentRepository.createQueryBuilder('payment');
+    try{const qb = this.paymentRepository.createQueryBuilder('payment');
 
     qb.where('payment.usersId = :userId', { userId });
 
@@ -192,6 +218,7 @@ export class PaymentService {
     qb.leftJoinAndSelect('payment.pakets', 'pakets')
       .leftJoinAndSelect('payment.banks', 'banks')
       .leftJoinAndSelect('payment.user', 'user')
+      .leftJoinAndSelect('user.subscription', 'subscription')
 
     qb.skip((page - 1) * limit).take(limit);
 
@@ -203,13 +230,32 @@ export class PaymentService {
       page,
       limit,
     };
+  } catch (error) {
+    throw new HttpException(
+      {
+        statusCode: HttpStatus.NOT_FOUND,
+        error: 'There is an error with your query',
+      },
+      HttpStatus.NOT_FOUND,
+    );
+  }
   }
 
   async findOne(id: string) {
+    try {
     return await this.dataSource.manager.findOneOrFail(Payment, {
       where: { id },
-      relations: { user: true, paket: true,bank:true },
+    relations: { user: {subscription:true}, paket: true,bank:true },
     });
+    } catch (error) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'payment not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
   }
 
   async update(id: string, updatePaymentDto: UpdatePaymentDto) {

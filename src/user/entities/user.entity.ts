@@ -17,6 +17,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { PasswordResetToken } from './passwordresettoken';
+import { sub } from 'date-fns';
 
 export enum UserStatus {
   AKTIF = 'Aktif',
@@ -27,7 +28,7 @@ export enum UserStatus {
 }
 
 @Entity('users')
-export class User {
+export class  User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -154,15 +155,8 @@ export class User {
   )
   payments: Payment[];
 
- @OneToOne(
-    () => {
-      return Subscription;
-    },
-    (subscription) => {
-      return subscription.user;
-    },
-  )
-  @JoinColumn()
+  @OneToOne(() => Subscription, (subscription) => subscription.user, { eager: true })
+  @JoinColumn({ name: 'subscription_id' })
   subscription: Subscription;
 
   @OneToMany(

@@ -26,8 +26,14 @@ export class Payment {
   @Column({ type: 'text', nullable: true })
   buktiPembayaran: string; // URL or path to payment proof image
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', nullable: true, default: null})
   reason: string; // Reason for rejection if status is REJECTED
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  start_date: Date;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  due_date: Date;
 
   @CreateDateColumn({
     type: 'timestamp with time zone',

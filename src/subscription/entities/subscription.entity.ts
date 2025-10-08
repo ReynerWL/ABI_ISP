@@ -20,10 +20,10 @@ export class Subscription {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'time with time zone', nullable: true })
+  @Column({ type: 'timestamp with time zone', nullable: true })
   start_date: Date;
 
-  @Column({ type: 'time with time zone', nullable: true })
+  @Column({ type: 'timestamp with time zone', nullable: true })
   due_date: Date;
 
   @CreateDateColumn({
@@ -44,15 +44,7 @@ export class Subscription {
   })
   deletedAt: Date | null;
 
-  @OneToOne(
-    () => {
-      return User;
-    },
-    (user) => {
-      return user.subscription;
-    },
-  )
-  @JoinColumn()
+  @OneToOne(() => User, (user) => user.subscription)
   user: User;
 
   @ManyToOne(
