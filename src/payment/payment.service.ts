@@ -129,6 +129,7 @@ async confirmPayment(paymentId: string) {
     startDate?: string,
     endDate?: string,
     month?: string,
+    year?:string,
     bank?: string,
     status?: string,
     page: number = 1,
@@ -161,6 +162,9 @@ async confirmPayment(paymentId: string) {
 
     if (month){
       qb.andWhere('EXTRACT(MONTH FROM payment.createdAt) = :month', { month });
+    }
+    if (year){
+      qb.andWhere('EXTRACT(YEAR FROM payment.createdAt) = :year', { year });
     }
 
     if (bank) {
