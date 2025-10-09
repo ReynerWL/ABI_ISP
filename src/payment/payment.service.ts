@@ -128,8 +128,8 @@ async confirmPayment(paymentId: string) {
     query?: string,
     startDate?: string,
     endDate?: string,
-    bankId?: string,
-    paketId?: string,
+    month?: string,
+    bank?: string,
     status?: string,
     page: number = 1,
     limit: number = 10,
@@ -144,10 +144,8 @@ async confirmPayment(paymentId: string) {
     // 🔹 Text Search (general query)
     if (query) {
       qb.andWhere(
-        '(payment.id LIKE :query OR ' +
-          'user.name LIKE :query OR ' +
+        '(user.name LIKE :query OR ' +
           'user.customerId LIKE :query OR ' +
-          'bank.name LIKE :query OR ' +
           'paket.name LIKE :query)',
         { query: `%${query}%` },
       );
@@ -161,14 +159,12 @@ async confirmPayment(paymentId: string) {
       });
     }
 
-    // 🔹 Filter by Bank (exact match)
-    if (bankId) {
-      qb.andWhere('bank.id = :bankId', { bankId });
+    if (month){
+      qb.andWhere('EXTRACT(MONTH FROM payment.createdAt) = :month', { month });
     }
 
-    // 🔹 Filter by Paket (exact match)
-    if (paketId) {
-      qb.andWhere('paket.id = :paketId', { paketId });
+    if (bank) {
+      qb.andWhere('bank.bank_name LIKE :bank', { bank:`%${bank}%`});
     }
 
     // 🔹 Filter by Status (exact match)
