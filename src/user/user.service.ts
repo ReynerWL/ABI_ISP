@@ -251,24 +251,45 @@ export class UserService {
     return user;
   }
 
-  async findOneByUser(userId: string) {
-    const user = await this.userRepository.findOneOrFail({
-      where: { id: userId },
-      relations: { role: true, paket: true, payments: true, subscription: true },
+async findOneByUser(userId: string) {
+  const user = await this.userRepository.findOne({
+    where: { id: userId },
+    relations: {
+      role: true,
+      paket: true,
+      payments: true,
+      subscription: true,
+    },
+  });
+
+  if (!user) {
+    throw new HttpException(
+      {
+        statusCode: HttpStatus.NOT_FOUND,
+        error: 'user not found',
+      },
+      HttpStatus.NOT_FOUND,
+    );
+  }
+
+  // Get payment count separately (safer than relying on array length)
+  const paymentCount = await this.userRepository.manager
+    .getRepository(Payment)
+    .count({
+      where: { user: { id: userId } },
     });
 
-    if (!user) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'user not found',
-        },
-        HttpStatus.NOT_FOUND,
-      );
-    }
+  // Return user, but format payments as { data, count }
+  const { payments, ...rest } = user;
 
-    return user;
-  }
+  return {
+    ...rest,
+    payments: {
+      data: payments || [],
+      count: paymentCount,
+    },
+  };
+}
 
   async findByCustomerId(customerId: string) {
     const user = await this.userRepository.findOne({

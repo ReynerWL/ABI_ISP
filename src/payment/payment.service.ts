@@ -116,6 +116,7 @@ async confirmPayment(paymentId: string) {
     status: 'CONFIRMED',
     start_date: startDateStr,
     due_date: dueDateStr,
+    confirmedAt: new Date(),
   });
 
   return await this.dataSource.manager.findOne(Payment, {
@@ -129,7 +130,6 @@ async confirmPayment(paymentId: string) {
     startDate?: string,
     endDate?: string,
     month?: string,
-    year?:string,
     bank?: string,
     status?: string,
     page: number = 1,
@@ -160,11 +160,12 @@ async confirmPayment(paymentId: string) {
       });
     }
 
-    if (month){
-      qb.andWhere('EXTRACT(MONTH FROM payment.createdAt) = :month', { month });
-    }
-    if (year){
-      qb.andWhere('EXTRACT(YEAR FROM payment.createdAt) = :year', { year });
+    if (month) {
+      const [monthPart, yearPart] = month.split('-').map(part => parseInt(part, 10));
+      if (monthPart && yearPart) {
+        qb.andWhere('EXTRACT(MONTH FROM payment.created_at) = :month', { month: monthPart });
+        qb.andWhere('EXTRACT(YEAR FROM payment.created_at) = :year', { year: yearPart });
+      }
     }
 
     if (bank) {

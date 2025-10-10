@@ -23,7 +23,7 @@ export enum UserStatus {
   AKTIF = 'Aktif',
   NONAKTIF = 'Nonaktif',
   BARU = 'Baru',
-  PENDING = 'Pending',
+  PENDING = 'Pra-Aktif',
   DITOLAK = 'Ditolak',
 }
 

@@ -7,7 +7,7 @@ import { Payment } from '#/payment/entities/payment.entity';
 export interface DashboardAdmin {
   totalCustomer: number;
   newCustomer: number;
-  pendingCustomer: number;
+  praAktifCustomer: number;
   activeCustomer: number;
   inactiveCustomer: number;
   packageInformations: Payment[];
@@ -49,7 +49,7 @@ export class DashboardService {
     const dataPayment = await this.dataSource.manager
       .getRepository(Payment)
       .createQueryBuilder('payment')
-      .leftJoin('payment.pakets', 'paket')
+      .leftJoin('payment.paket', 'paket')
       .select('paket.speed', 'paketSpeed')
       .addSelect('COUNT(payment.id)', 'total')
       .groupBy('paket.speed')
@@ -85,7 +85,7 @@ export class DashboardService {
     const datas: DashboardAdmin = {
       totalCustomer: total,
       newCustomer: newCust.length,
-      pendingCustomer: pendingCust.length,
+      praAktifCustomer: pendingCust.length,
       activeCustomer: activeCust.length,
       inactiveCustomer: inactiveCust.length,
       packageInformations: dataPayment,

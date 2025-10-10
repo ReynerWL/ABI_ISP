@@ -35,6 +35,9 @@ export class Payment {
   @Column({ type: 'timestamp with time zone', nullable: true })
   due_date: Date;
 
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  confirmedAt: Date;
+
   @CreateDateColumn({
     type: 'timestamp with time zone',
     nullable: false,
