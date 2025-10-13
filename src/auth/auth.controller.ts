@@ -15,10 +15,15 @@ import { AuthService } from './auth.service';
 import { SendTokenDto } from './dto/send-token';
 import { ValidatePasswordTokenDto } from './dto/validate-password-token';
 import { ForgetPasswordDto } from './dto/forget-password';
+import { DataSource } from 'typeorm';
+import { User } from '#/user/entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private dataSource: DataSource
+  ) {}
 
   @Public()
   @Post('login')
@@ -30,14 +35,18 @@ export class AuthController {
     };
   }
 
-  @Public()
   @Get('validate-token')
   async validateToken(@Request() req: ExtendedRequest) {
+    const user = await this.dataSource.getRepository(User).findOne({
+      where: { id: req.user.id },
+      relations: ['role'],
+    });
     return {
       message: 'Token Is Valid',
-      data: req.user,
-    };
+      data: { ...req.user, email: user.email, role: user.role.name },
+      statusCode: HttpStatus.OK,
   }
+}
 
   @Post('forget-password/send-token')
   async sendToken(@Body() sendTokenDto: SendTokenDto) {
