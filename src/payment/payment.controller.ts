@@ -55,6 +55,7 @@ export class PaymentController {
   findAllByUser(
     @Request() req: ExtendedRequest,
     @Query('query') query?: string,
+    @Query('status') status?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('page') page: number = 1,
@@ -63,6 +64,7 @@ export class PaymentController {
     return this.paymentService.findAllByUser(
       req.user.id,
       query,
+      status,
       startDate,
       endDate,
       Number(page),

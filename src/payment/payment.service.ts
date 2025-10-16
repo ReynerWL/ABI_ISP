@@ -2,12 +2,13 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { Payment } from './entities/payment.entity';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, LessThan, Repository } from 'typeorm';
 import { User } from '#/user/entities/user.entity';
 import { Bank } from '#/bank/entities/bank.entity';
 import { Paket } from '#/paket/entities/paket.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Subscription } from '#/subscription/entities/subscription.entity';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class PaymentService {
@@ -17,34 +18,57 @@ export class PaymentService {
     private dataSource: DataSource,
   ) {}
 
-  async create(createPaymentDto: CreatePaymentDto) {
-    const user = await this.dataSource.manager.findOne(User, {
-      where: { id: createPaymentDto.usersId },
-    });
-    if (!user) {
-      throw new Error('User not found');
-    }
-    const paket = await this.dataSource.manager.findOne(Paket, {
-      where: { id: createPaymentDto.paketsId },
-    });
-    if (!paket) {
-      throw new Error('Paket not found');
-    }
-    const bank = await this.dataSource.manager.findOne(Bank, {
-      where: { id: createPaymentDto.banksId },
-    });
-    if (!bank) {
-      throw new Error('Bank not found');
-    }
-    const payment = this.dataSource.manager.create(Payment, {
-      ...createPaymentDto,
+async create(createPaymentDto: CreatePaymentDto) {
+  const user = await this.dataSource.manager.findOne(User, {
+    where: { id: createPaymentDto.usersId },
+  });
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  const paket = await this.dataSource.manager.findOne(Paket, {
+    where: { id: createPaymentDto.paketsId },
+  });
+  if (!paket) {
+    throw new Error('Paket not found');
+  }
+
+  const bank = await this.dataSource.manager.findOne(Bank, {
+    where: { id: createPaymentDto.banksId },
+  });
+  if (!bank) {
+    throw new Error('Bank not found');
+  }
+
+  // ✅ Check for existing PENDING payment with same paketId and no buktiPembayaran
+  const existingPendingPayment = await this.dataSource.manager.findOne(Payment, {
+    where: {
       user: user,
       paket: paket,
-      bank: bank,
       status: 'PENDING',
+      buktiPembayaran: null, // or '' if you store empty string
+    },
+  });
+
+  // ✅ If found, reject it
+  if (existingPendingPayment) {
+    await this.dataSource.manager.update(Payment, existingPendingPayment.id, {
+      status: 'REJECTED',
+      reason: 'New payment created — old pending payment rejected',
     });
-    return await this.dataSource.manager.save(payment);
   }
+
+  // ✅ Create new payment
+  const payment = this.dataSource.manager.create(Payment, {
+    ...createPaymentDto,
+    user: user,
+    paket: paket,
+    bank: bank,
+    status: 'PENDING', // New payment starts as PENDING
+  });
+
+  return await this.dataSource.manager.save(payment);
+}
 
   async rejectPayment(paymentId: string, reason: string) {
     // Logic to reject a payment
@@ -196,6 +220,7 @@ async confirmPayment(paymentId: string) {
   async findAllByUser(
     userId: string,
     query?: string,
+    status?: string,
     startDate?: string,
     endDate?: string,
     page: number = 1,
@@ -207,6 +232,10 @@ async confirmPayment(paymentId: string) {
 
     if (query) {
       qb.andWhere('payment.id LIKE :query', { query: `%${query}%` });
+    }
+
+    if (status) {
+      qb.andWhere('payment.status = :status', { status });
     }
 
     if (startDate && endDate) {
@@ -299,5 +328,23 @@ async confirmPayment(paymentId: string) {
     return {
       message: 'payment deleted successfully',
     };
+  }
+
+  @Cron('0 * * * *') // Runs every hour
+  async cancelOldPendingPayments() {
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+    const pendingPayments = await this.paymentRepository.find({
+      where: {
+        status: 'PENDING',
+        buktiPembayaran: null,
+        createdAt: LessThan(twentyFourHoursAgo),
+      },
+    });
+
+    for (const payment of pendingPayments) {
+      await this.paymentRepository.update(payment.id, { status: 'REJECTED' });
+    }
   }
 }
