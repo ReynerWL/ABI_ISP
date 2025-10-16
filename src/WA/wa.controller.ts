@@ -8,18 +8,15 @@ export class WhatsAppController {
   constructor(private waService: WhatsAppService) {}
 
   @Public()
-  @Get('qr')
-  async getQR() {
-    const status = this.waService.getStatus();
-    const qrCodeAscii = await this.waService.getQrCodeAscii();
-    console.log(qrCodeAscii);
-
-    return {
-      connected: status.connected,
-      qr: status.qr, // Will be string or null
-      qrCode: status.qrCode, // Base64 image (optional)
-    };
+@Get('qr')
+getQrCode() {
+  const base64DataUrl = this.waService.getQrCode();
+  if (base64DataUrl) {
+     return { qrCodeDataUrl: base64DataUrl }; // e.g., { qrCodeDataUrl: "data:image/png;base64,iVBOR..." }
+  } else {
+     return { message: 'No QR code available. Bot might be connected or disconnected.' };
   }
+}
 
   @Public()
   @Get('status')
@@ -34,62 +31,6 @@ export class WhatsAppController {
     return { message: 'Logged out. Scan QR to reconnect.' };
   }
 
-  @Public()
-  @Get('test-message')
-  @HttpCode(200)
-  async sendTestMessage(
-    @Query('to') to: string,
-  ): Promise<{ success: boolean; message?: string; error?: string }> {
-    try {
-      // Normalize phone number
-      const phoneNumber = this.normalizePhone(to);
-      if (!phoneNumber) {
-        return {
-          success: false,
-          error:
-            'Invalid phone number format. Use international format (e.g., 6281234567890)',
-        };
-      }
-
-      const fullJid = `${phoneNumber}@c.us`;
-
-      // Get WhatsApp client
-      const client = this.waService.getClient();
-      if (!client) {
-        return {
-          success: false,
-          error: 'WhatsApp bot is not connected',
-        };
-      }
-
-      await client.sendMessage(fullJid, {
-        text: 'What would you like to do?',
-        footer: 'Tap to select',
-        title: 'Main Menu',
-        buttonText: 'Open Menu',
-        sections: [
-          {
-            rows: [
-              { title: '📊 Check Usage', rowId: 'usage' },
-              { title: '🛒 Buy Package', rowId: 'buy' },
-              { title: '📞 Contact Support', rowId: 'support' },
-            ],
-          },
-        ],
-        listType: 1,
-      });
-      return {
-        success: true,
-        message: `Test message sent to ${fullJid}`,
-      };
-    } catch (error) {
-      console.error('Failed to send test message:', error);
-      return {
-        success: false,
-        error: 'Failed to send message: ' + error.message,
-      };
-    }
-  }
 
   private normalizePhone(phone: string): string | null {
     const cleaned = phone?.replace(/\D/g, '');
