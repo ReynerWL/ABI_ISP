@@ -127,7 +127,7 @@ export class UserService {
       }
 
       const paket = await paketRepo.findOneOrFail({
-        where: { id: registerDto.payment.paketsId },
+        where: { id: registerDto.payment.paketId },
       });
 
       const role = await roleRepo.findOneOrFail({

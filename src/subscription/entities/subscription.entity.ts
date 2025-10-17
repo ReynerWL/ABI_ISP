@@ -55,7 +55,7 @@ export class Subscription {
       return paket.subscriptions;
     },
   )
-  pakets?: Paket;
+  paket?: Paket;
 
   @ManyToOne(
     () => {

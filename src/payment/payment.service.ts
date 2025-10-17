@@ -27,7 +27,7 @@ async create(createPaymentDto: CreatePaymentDto) {
   }
 
   const paket = await this.dataSource.manager.findOne(Paket, {
-    where: { id: createPaymentDto.paketsId },
+    where: { id: createPaymentDto.paketId },
   });
   if (!paket) {
     throw new Error('Paket not found');
@@ -130,7 +130,7 @@ async confirmPayment(paymentId: string) {
   await this.dataSource.manager.save(Subscription, {
     start_date: startDateStr,
     due_date: dueDateStr,
-    pakets: payment.paket,
+    paket: payment.paket,
     banks: payment.bank,
     user: payment.user,
   });
@@ -245,7 +245,7 @@ async confirmPayment(paymentId: string) {
       });
     }
 
-    qb.leftJoinAndSelect('payment.pakets', 'pakets')
+    qb.leftJoinAndSelect('payment.paket', 'paket')
       .leftJoinAndSelect('payment.banks', 'banks')
       .leftJoinAndSelect('payment.user', 'user')
       .leftJoinAndSelect('user.subscription', 'subscription')

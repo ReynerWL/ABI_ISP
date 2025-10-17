@@ -232,7 +232,7 @@ private async handlePaymentProof(
     // Find latest subscription
     const latestSubscription = await this.dataSource.manager.findOne(Subscription, {
       where: { user: { id: userState.userId } },
-      relations: ['pakets', 'banks'],
+      relations: ['paket', 'banks'],
       order: { createdAt: 'DESC' },
     });
 
@@ -256,9 +256,9 @@ private async handlePaymentProof(
       usersId: userState.userId,
       buktiPembayaran: fileUrl,
       status: 'PENDING',
-      price: latestSubscription?.pakets[0]?.price || null,
+      price: latestSubscription?.paket.price || null,
       reason: '',
-      paketsId: latestSubscription?.pakets[0]?.id || null,
+      paketId: latestSubscription?.paket.id || null,
       banksId: latestSubscription?.banks?.id || null,
       start_date: startDate,
       due_date: dueDate,

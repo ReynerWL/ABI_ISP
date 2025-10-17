@@ -74,7 +74,7 @@ export class Paket {
       return Subscription;
     },
     (subscription) => {
-      return subscription.pakets;
+      return subscription.paket;
     },
   )
   subscriptions?: Subscription;

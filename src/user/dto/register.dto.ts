@@ -3,7 +3,7 @@ import { IsNotEmpty } from 'class-validator';
 
 export class PaymentDto {
   @IsNotEmpty()
-  paketsId: string;
+  paketId: string;
   @IsNotEmpty()
   price: number;
   @IsNotEmpty()
