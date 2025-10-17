@@ -83,6 +83,7 @@ export class Payment {
     (bank) => {
       return bank.payments;
     },
+    { nullable: true }
   )
-  bank?: Bank;
+  bank?: Bank | null
 }

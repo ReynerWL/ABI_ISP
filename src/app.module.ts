@@ -68,10 +68,10 @@ require('dotenv').config();
         timestamp: pino.stdTimeFunctions.isoTime,
         level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
         // install 'pino-pretty' package in order to use the following option
-        // transport:
-        //   process.env.NODE_ENV !== 'production'
-        //     ? { target: 'pini-pr' }
-        //     : undefined,
+        transport:
+          process.env.NODE_ENV !== 'production'
+            ? { target: 'pino-pretty' }
+            : undefined,
       },
     }),
     ConfigModule.forRoot({

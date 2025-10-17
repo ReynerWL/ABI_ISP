@@ -8,7 +8,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User, UserStatus } from './entities/user.entity';
-import { DataSource, ILike, Like, Repository } from 'typeorm';
+import { DataSource, ILike, Repository } from 'typeorm';
 import { Role } from '#/role/entities/role.entity';
 import { randomUUID } from 'crypto';
 import { hashPassword } from '#/auth/hashpassword';
@@ -21,165 +21,176 @@ import { PaginationDto } from '#/utils/pagination.dto';
 @Injectable()
 export class UserService {
   constructor(
-    private dataSource: DataSource,
+    private dataSource: DataSource, 
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(Payment)
-    private readonly paymentRepository: Repository<Payment>,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    if (createUserDto.email) {
-      if (
-        await this.userRepository.findOne({
+    return await this.dataSource.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const roleRepo = manager.getRepository(Role);
+
+      if (createUserDto.email) {
+        const existingUser = await userRepo.findOne({
           where: { email: createUserDto.email },
-        })
-      ) {
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.BAD_REQUEST,
-            error: 'email already used',
-          },
-          HttpStatus.BAD_REQUEST,
-        );
+        });
+        if (existingUser) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.BAD_REQUEST,
+              error: 'email already used',
+            },
+            HttpStatus.BAD_REQUEST,
+          );
+        }
       }
-    }
 
-    // Check if phone number already exists
-    if (createUserDto.phone_number) {
-      if (
-        await this.userRepository.findOne({
+      if (createUserDto.phone_number) {
+        const existingUser = await userRepo.findOne({
           where: { phone_number: createUserDto.phone_number },
-        })
-      ) {
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.BAD_REQUEST,
-            error: 'phone number already used',
-          },
-          HttpStatus.BAD_REQUEST,
-        );
+        });
+        if (existingUser) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.BAD_REQUEST,
+              error: 'phone number already used',
+            },
+            HttpStatus.BAD_REQUEST,
+          );
+        }
       }
-    }
 
-    const role = await this.dataSource.manager.findOneOrFail(Role, {
-      where: { name: createUserDto.role },
+      const role = await roleRepo.findOneOrFail({
+        where: { name: createUserDto.role },
+      });
+
+      const data = new User();
+      data.name = createUserDto.name;
+      data.email = createUserDto.email;
+      data.phone_number = createUserDto.phone_number;
+      data.photo_ktp = createUserDto.photo_ktp;
+      data.role = role;
+      data.salt = randomUUID();
+      data.password = await hashPassword(createUserDto.password, data.salt);
+      data.alamat = createUserDto.alamat;
+      data.status = createUserDto.status;
+      data.priority = createUserDto.priority;
+
+      const userCount = (await userRepo.count()) + 1;
+      const date = new Date();
+      const year = date.getFullYear().toString().slice(-2);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const sequential = userCount.toString().padStart(4, '0');
+      data.customerId = `${sequential}${year}${month}${day}`;
+
+      const savedUser = await userRepo.save(data); 
+
+      const userWithRelations = await userRepo.findOne({
+         where: { id: savedUser.id },
+         relations: ['role'] 
+      });
+
+      return {
+        data: userWithRelations || savedUser, // Return saved user
+      };
     });
-
-    // Create new user
-    const data = new User();
-
-    data.name = createUserDto.name;
-    data.email = createUserDto.email;
-    data.name = createUserDto.name;
-    data.phone_number = createUserDto.phone_number;
-    data.photo_ktp = createUserDto.photo_ktp;
-    data.role = role;
-    data.salt = randomUUID();
-    data.password = await hashPassword(createUserDto.password, data.salt);
-    data.alamat = createUserDto.alamat;
-    data.status = createUserDto.status;
-    data.priority = createUserDto.priority;
-
-    const user_id = (await this.userRepository.count()) + 1;
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const sequential = user_id.toString().padStart(4, '0');
-    data.customerId = `${sequential}${year}${month}${day}`;
-    // Insert new user into the repository
-    const result = await this.userRepository.insert(data);
-
-    return {
-      data: await this.userRepository.findOne({
-        where: { id: result.identifiers[0].id },
-      }),
-    };
   }
 
   async register(registerDto: RegisterDto) {
-    if (registerDto.email) {
-      if (
-        await this.userRepository.findOne({
+    return await this.dataSource.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const paketRepo = manager.getRepository(Paket);
+      const roleRepo = manager.getRepository(Role);
+      const bankRepo = manager.getRepository(Bank);
+      const paymentRepo = manager.getRepository(Payment);
+
+      if (registerDto.email) {
+        const exists = await userRepo.findOne({
           where: { email: registerDto.email },
-        })
-      ) {
-        throw new BadRequestException(
-          'Email ini sudah terdaftar, silahkan gunakan email lain',
-        );
+        });
+        if (exists) {
+          throw new BadRequestException(
+            'Email ini sudah terdaftar, silahkan gunakan email lain',
+          );
+        }
       }
-    }
 
-    // Check if phone number already exists
-    if (registerDto.phone_number) {
-      if (
-        await this.userRepository.findOne({
+      if (registerDto.phone_number) {
+        const existsPhone = await userRepo.findOne({
           where: { phone_number: registerDto.phone_number },
-        })
-      ) {
-        throw new BadRequestException('Nomor telepon ini sudah terdaftar');
+        });
+        if (existsPhone) {
+          throw new BadRequestException('Nomor telepon ini sudah terdaftar');
+        }
       }
-    }
 
-    const paket = await this.dataSource.manager.findOneOrFail(Paket, {
-      where: { id: registerDto.payment.paketsId },
+      const paket = await paketRepo.findOneOrFail({
+        where: { id: registerDto.payment.paketsId },
+      });
+
+      const role = await roleRepo.findOneOrFail({
+        where: { name: ILike(`%user%`) }, 
+      });
+
+      const data = new User();
+      data.email = registerDto.email;
+      data.name = registerDto.name;
+      data.phone_number = registerDto.phone_number;
+      data.alamat = registerDto.alamat;
+      data.photo_ktp = registerDto.photo_ktp;
+      data.salt = randomUUID();
+      data.password = await hashPassword(registerDto.password, data.salt);
+      data.birth_date = registerDto.birth_date;
+      data.provinsi = registerDto.provinsi;
+      data.kota = registerDto.kota;
+      data.kecamatan = registerDto.kecamatan;
+      data.kelurahan = registerDto.kelurahan;
+      data.role = role;
+      data.paket = paket; 
+
+      const userCount = (await userRepo.count()) + 1;
+      const date = new Date();
+      const year = date.getFullYear().toString().slice(-2);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const sequential = userCount.toString().padStart(4, '0');
+      data.customerId = `${sequential}${year}${month}${day}`;
+
+      const savedUser = await userRepo.save(data);
+
+      const payment = new Payment();
+      const bank: Bank | null = await bankRepo.findOne({
+        where: { id: registerDto.payment.banksId },
+      });
+      payment.paket = paket;
+      payment.bank = bank ?? undefined; 
+      payment.user = savedUser; 
+      payment.price = registerDto.payment.price;
+      payment.buktiPembayaran = registerDto.payment.buktiPembayaran;
+      payment.status = 'PENDING';
+
+      const savedPayment = await paymentRepo.save(payment); 
+
+      const userWithRelations = await userRepo.findOne({
+        where: { id: savedUser.id },
+        relations: ['role', 'paket'], // Fetch necessary relations
+      });
+
+      const paymentWithRelations = await paymentRepo.findOne({
+        where: { id: savedPayment.id },
+        relations: ['paket', 'bank', 'user'], // Fetch necessary relations
+      });
+
+      return {
+        data: userWithRelations,
+        payment: paymentWithRelations,
+        Status: HttpStatus.CREATED,
+      };
     });
-
-    //Create User
-    const data = new User();
-    data.email = registerDto.email;
-    data.name = registerDto.name;
-    data.phone_number = registerDto.phone_number;
-    data.alamat = registerDto.alamat;
-    data.photo_ktp = registerDto.photo_ktp;
-    data.salt = randomUUID();
-    data.password = await hashPassword(registerDto.password, data.salt);
-    data.birth_date = registerDto.birth_date;
-    data.provinsi = registerDto.provinsi;
-    data.kota = registerDto.kota;
-    data.kecamatan = registerDto.kecamatan;
-    data.kelurahan = registerDto.kelurahan;
-    data.alamat = registerDto.alamat;
-    data.role = await this.dataSource.manager.findOneOrFail(Role, {
-      where: { name: ILike(`%user%`) },
-    });
-    data.paket = paket;
-    const user_id = (await this.userRepository.count()) + 1;
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const sequential = user_id.toString().padStart(4, '0');
-    data.customerId = `${sequential}${year}${month}${day}`;
-
-    const result = await this.userRepository.insert(data);
-
-    //Create Payment
-    const payment = new Payment();
-    const bank = await this.dataSource.manager.findOneOrFail(Bank, {
-      where: { id: registerDto.payment.banksId },
-    });
-    payment.paket = paket;
-    payment.bank = bank;
-    payment.user = result.identifiers[0].id;
-    payment.price = registerDto.payment.price;
-    payment.buktiPembayaran = registerDto.payment.buktiPembayaran;
-    payment.status = 'PENDING';
-
-    const paymentRes = await this.paymentRepository.insert(payment);
-
-    return {
-      data: await this.userRepository.findOne({
-        where: { id: result.identifiers[0].id },
-      }),
-      payment: await this.paymentRepository.findOne({
-        where: { id: paymentRes.identifiers[0].id },
-        relations: ['pakets', 'banks'],
-      }),
-      Status: HttpStatus.CREATED,
-    };
   }
+
 
   async findAll(
     search: string,
@@ -233,7 +244,7 @@ export class UserService {
   }
 
   async findOne(id: string) {
-    const user = await this.userRepository.findOneOrFail({
+     const user = await this.userRepository.findOne({
       where: { id },
       relations: ['role'],
     });
@@ -251,50 +262,48 @@ export class UserService {
     return user;
   }
 
-async findOneByUser(userId: string) {
-  const user = await this.userRepository.findOne({
-    where: { id: userId },
-    relations: {
-      role: true,
-      paket: true,
-      payments: true,
-      subscription: true,
-    },
-  });
-
-  if (!user) {
-    throw new HttpException(
-      {
-        statusCode: HttpStatus.NOT_FOUND,
-        error: 'user not found',
+  async findOneByUser(userId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: {
+        role: true,
+        paket: true,
+        payments: true,
+        subscription: true,
       },
-      HttpStatus.NOT_FOUND,
-    );
-  }
-
-  // Get payment count separately (safer than relying on array length)
-  const paymentCount = await this.userRepository.manager
-    .getRepository(Payment)
-    .count({
-      where: { user: { id: userId } },
     });
 
-  // Return user, but format payments as { data, count }
-  const { payments, ...rest } = user;
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'user not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
 
-  return {
-    ...rest,
-    payments: {
-      data: payments || [],
-      count: paymentCount,
-    },
-  };
-}
+    const paymentCount = await this.userRepository.manager
+      .getRepository(Payment)
+      .count({
+        where: { user: { id: userId } },
+      });
+
+    const { payments, ...rest } = user;
+
+    return {
+      ...rest,
+      payments: {
+        data: payments || [],
+        count: paymentCount,
+      },
+    };
+  }
 
   async findByCustomerId(customerId: string) {
     const user = await this.userRepository.findOne({
-      where: { id: customerId, role: { name: 'CUSTOMER' } },
-      relations: ['role','payment','paket','subscription'],
+      where: { id: customerId, role: { name: 'CUSTOMER' } }, 
+      relations: ['role', 'payment', 'paket', 'subscription'], 
     });
     if (!user) {
       throw new HttpException(
@@ -331,83 +340,86 @@ async findOneByUser(userId: string) {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    const user = await this.userRepository.findOneOrFail({
-      where: { id },
-      relations: ['role'],
+    return await this.dataSource.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      // const roleRepo = manager.getRepository(Role); // Uncomment if updating role
+
+      const user = await userRepo.findOne({
+         where: { id },
+         relations: ['role'] 
+      });
+
+      if (!user) {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.NOT_FOUND,
+            error: 'user not found',
+          },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      if (updateUserDto.email && updateUserDto.email !== user.email) {
+        const existingUser = await userRepo.findOne({
+          where: { email: updateUserDto.email },
+        });
+        if (existingUser) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.BAD_REQUEST,
+              error: 'email already used',
+            },
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      if (updateUserDto.phone_number && updateUserDto.phone_number !== user.phone_number) { 
+         const existingUser = await userRepo.findOne({
+           where: { phone_number: updateUserDto.phone_number },
+         });
+         if (existingUser) {
+           throw new HttpException(
+             {
+               statusCode: HttpStatus.BAD_REQUEST,
+               error: 'phone number already used',
+             },
+             HttpStatus.BAD_REQUEST,
+           );
+         }
+      }
+
+
+      const updateData: Partial<User> = {};
+      if (updateUserDto.name !== undefined) updateData.name = updateUserDto.name;
+      if (updateUserDto.email !== undefined) updateData.email = updateUserDto.email;
+      if (updateUserDto.phone_number !== undefined) updateData.phone_number = updateUserDto.phone_number;
+      if (updateUserDto.photo_ktp !== undefined) updateData.photo_ktp = updateUserDto.photo_ktp;
+      if (updateUserDto.alamat !== undefined) updateData.alamat = updateUserDto.alamat;
+      if (updateUserDto.password) {
+         user.salt = randomUUID();
+         user.password = await hashPassword(updateUserDto.password, user.salt);
+      }
+
+      Object.assign(user, updateData);
+
+      const savedUser = await userRepo.save(user); // Save using transactional manager
+
+      const userWithRelations = await userRepo.findOne({
+         where: { id: savedUser.id },
+         relations: ['role'] 
+      });
+
+      return {
+        data: userWithRelations || savedUser, // Return updated user
+      };
     });
 
-    if (!user) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'user not found',
-        },
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    if (updateUserDto.email) {
-      if (
-        await this.userRepository.findOne({
-          where: { email: updateUserDto.email },
-        })
-      ) {
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.BAD_REQUEST,
-            error: 'email already used',
-          },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-    }
-
-    if (updateUserDto.phone_number) {
-      if (
-        await this.userRepository.findOne({
-          where: { phone_number: updateUserDto.phone_number },
-        })
-      ) {
-        throw new HttpException(
-          {
-            statusCode: HttpStatus.BAD_REQUEST,
-            error: 'phone number already used',
-          },
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-    }
-
-    // const role = await this.dataSource.manager.findOneOrFail(Role, {
-    //   where: { name: updateUserDto.role },
-    // });
-
-    const data = new User();
-    data.name = updateUserDto.name;
-    data.email = updateUserDto.email;
-    data.name = updateUserDto.name;
-    data.phone_number = updateUserDto.phone_number;
-    data.photo_ktp = updateUserDto.photo_ktp;
-    data.provinsi = 'Jawa Barat';
-    data.kota = 'Kabupaten Bekasi';
-    data.kecamatan = 'Babelan';
-    data.salt = randomUUID();
-    data.password = await hashPassword(updateUserDto.password, data.salt);
-    data.alamat = updateUserDto.alamat;
-    // data.status = updateUserDto.status;
-    // data.priority = updateUserDto.priority;
-
-    await this.userRepository.update(id, data);
-
-    return {
-      data: await this.userRepository.findOne({ where: { id: id } }),
-    };
   }
 
+
   async remove(id: string) {
-    const user = await this.userRepository.findOneOrFail({
-      where: { id },
-    });
+    const user = await this.userRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new HttpException(
