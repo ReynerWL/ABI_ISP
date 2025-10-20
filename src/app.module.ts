@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as Joi from 'joi';
 import { LoggerModule } from 'nestjs-pino';
@@ -24,6 +24,10 @@ import { MailModule } from './mail/mail.module';
 import { FileModule } from './file/file.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { QrisModule } from './qris/qris.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { LoggingInterceptor } from './logging/logging.interceptor';
+import { UserContextMiddleware } from './middleware/user-context.middleware';
+import { MikrotikModule } from './mikrotik/mikrotik.module';
 require('dotenv').config();
 
 @Module({
@@ -69,7 +73,7 @@ require('dotenv').config();
         level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
         // install 'pino-pretty' package in order to use the following option
         transport:
-          process.env.NODE_ENV !== 'production'
+          process.env.NODE_ENV !== ''
             ? { target: 'pino-pretty' }
             : undefined,
       },
@@ -141,6 +145,19 @@ require('dotenv').config();
     FileModule,
     DashboardModule,
     QrisModule,
+    MikrotikModule
+  ],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(UserContextMiddleware)
+      .forRoutes('*'); // Apply to all routes
+  }
+}

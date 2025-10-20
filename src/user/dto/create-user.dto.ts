@@ -1,5 +1,6 @@
 import { IsEnum, IsNotEmpty } from 'class-validator';
 import { UserStatus } from '../entities/user.entity';
+import { Optional } from '@nestjs/common';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -29,4 +30,30 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   priority: boolean;
+
+  @IsNotEmpty()
+  paketsId: string;
+
+  @IsNotEmpty()
+  bankId: string;
+
+  @Optional()
+  ip_address: string;
+}
+
+export class CreateAdminDto {
+  @IsNotEmpty()
+  email: string;
+
+  @IsNotEmpty()
+  password: string;
+
+  @IsNotEmpty()
+  name: string;
+
+  @IsNotEmpty()
+  phone_number: string;
+
+  @IsNotEmpty()
+  status: UserStatus;
 }

@@ -40,6 +40,20 @@ export class AuthService {
       );
     }
 
+    if (dataUser.status != 'Aktif' && dataUser.role.name == 'ADMIN') {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNAUTHORIZED,
+          error: `User status is ${dataUser.status}, access denied`,
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }else if (dataUser.role.name == 'ADMIN' && dataUser.status == 'Aktif'){
+      await this.usersRepository.update(dataUser.id, {
+        last_login: new Date(),
+      });
+    }
+
     const accessToken = await this.createToken(dataUser.id);
 
     return { accessToken: accessToken };

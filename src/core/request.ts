@@ -6,7 +6,7 @@ export interface ExtendedRequest extends Request {
     id: string;
     name: string;
     email: string;
-    roles: string[];
+    roles: string;
     accesses: Record<string, boolean>;
   };
   userObj: User;

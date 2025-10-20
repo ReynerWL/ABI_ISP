@@ -111,22 +111,18 @@ async confirmPayment(paymentId: string) {
   let dueDate: Date;
 
   if (!latestSubscription || latestSubscription.due_date < new Date()) {
-    // 🆕 First-time or expired → Start today
     startDate = new Date();
     dueDate = new Date(startDate);
     dueDate.setDate(dueDate.getDate() + 30); // 30 days from today
   } else {
-    // 🔁 Renewal → Start after old due date
     startDate = new Date(latestSubscription.due_date);
     dueDate = new Date(startDate);
     dueDate.setDate(dueDate.getDate() + 30); // 30 days from previous end
   }
 
-  // ✅ Convert to ISO string for PostgreSQL compatibility
   const startDateStr = startDate.toISOString();
   const dueDateStr = dueDate.toISOString();
 
-  // ✅ Create new subscription
   await this.dataSource.manager.save(Subscription, {
     start_date: startDateStr,
     due_date: dueDateStr,
@@ -135,7 +131,6 @@ async confirmPayment(paymentId: string) {
     user: payment.user,
   });
 
-  // ✅ Update payment status
   await this.paymentRepository.update(paymentId, {
     status: 'CONFIRMED',
     start_date: startDateStr,

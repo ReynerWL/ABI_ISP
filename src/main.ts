@@ -6,6 +6,7 @@ import { Logger } from 'nestjs-pino';
 import { CorrelationIdMiddleware } from './utils/correlation-id.middleware';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { LoggingInterceptor } from './logging/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -21,6 +22,8 @@ async function bootstrap() {
       whitelist: true,
     }),
   );
+
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   const config = new DocumentBuilder()
     .setTitle('ABI ISP API Docs')

@@ -6,6 +6,7 @@ import {
   HttpStatus,
   UseGuards,
   Request,
+  HttpException,
 } from '@nestjs/common';
 import { Public } from './public.decorator';
 import { JwtAuthGuard } from '#/core/jwt-auth.guard';
@@ -41,6 +42,16 @@ export class AuthController {
       where: { id: req.user.id },
       relations: ['role'],
     });
+
+    if (user.status != 'Aktif' && user.role.name == 'ADMIN') {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.UNAUTHORIZED,
+          error: `User status is ${user.status}, access denied`,
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
     return {
       message: 'Token Is Valid',
       data: { ...req.user, email: user.email, role: user.role.name },

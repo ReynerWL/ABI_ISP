@@ -18,6 +18,7 @@ import {
 } from 'typeorm';
 import { PasswordResetToken } from './passwordresettoken';
 import { sub } from 'date-fns';
+import { MikroTikUser } from '#/mikrotik/entities/mikrotik-user.entity';
 
 export enum UserStatus {
   AKTIF = 'Aktif',
@@ -107,6 +108,12 @@ export class  User {
   })
   priority: boolean;
 
+  @Column({nullable: true, unique: true})
+  ip_address: string;
+
+  @Column({ nullable: true, type: 'timestamp with time zone' })
+  last_login: Date;
+
   @CreateDateColumn({
     type: 'timestamp with time zone',
     nullable: false,
@@ -181,4 +188,7 @@ export class  User {
 
   @OneToMany(() => PasswordResetToken, (token) => token.user)
   resetTokens: PasswordResetToken[];
+
+  @OneToOne(() => MikroTikUser, (mikrotikUser) => mikrotikUser.user)
+  mikrotikUser: MikroTikUser;
 }

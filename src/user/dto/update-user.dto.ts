@@ -1,16 +1,25 @@
 import { IsNotEmpty } from 'class-validator';
+import { User, UserStatus } from '../entities/user.entity';
 
 export class UpdateUserDto {
-  @IsNotEmpty()
+
   email: string;
-  @IsNotEmpty()
+
   phone_number: string;
-  @IsNotEmpty()
+
   name: string;
-  @IsNotEmpty()
+
   password: string;
-  @IsNotEmpty()
+
   alamat: string;
-  @IsNotEmpty()
+
   photo_ktp: string;
+
+  paketsId: string;
+
+  bankId: string;
+
+  status: UserStatus;
+
+  ip_address: string;
 }

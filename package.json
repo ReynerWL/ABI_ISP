@@ -69,7 +69,8 @@
     "string-width": "4",
     "swagger-ui-express": "^5.0.0",
     "typeorm": "^0.3.25",
-    "typeorm-naming-strategies": "^4.1.0"
+    "typeorm-naming-strategies": "^4.1.0",
+    "winston": "^3.18.3"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",

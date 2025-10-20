@@ -4,19 +4,20 @@ import {
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateAdminDto, CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User, UserStatus } from './entities/user.entity';
 import { DataSource, ILike, Repository } from 'typeorm';
 import { Role } from '#/role/entities/role.entity';
-import { randomUUID } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { hashPassword } from '#/auth/hashpassword';
 import { RegisterDto } from './dto/register.dto';
 import { Payment } from '#/payment/entities/payment.entity';
 import { Paket } from '#/paket/entities/paket.entity';
 import { Bank } from '#/bank/entities/bank.entity';
 import { PaginationDto } from '#/utils/pagination.dto';
+import { logger } from 'handlebars';
 
 @Injectable()
 export class UserService {
@@ -27,7 +28,7 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    return await this.dataSource.transaction(async (manager) => {
+      return await this.dataSource.transaction(async (manager) => {
       const userRepo = manager.getRepository(User);
       const roleRepo = manager.getRepository(Role);
 
@@ -61,6 +62,17 @@ export class UserService {
         }
       }
 
+      
+      if (createUserDto.role == 'ADMIN' || createUserDto.role == 'SUPERADMIN') {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.FORBIDDEN,
+            error: 'Cannot assign ADMIN or SUPERADMIN role',
+          },
+          HttpStatus.FORBIDDEN,
+        );
+      }
+      
       const role = await roleRepo.findOneOrFail({
         where: { name: createUserDto.role },
       });
@@ -191,12 +203,48 @@ export class UserService {
     });
   }
 
+  async createAdmin(createAdminDto: CreateAdminDto, roles: string) {
+    if (roles !== 'SUPERADMIN') {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          error: 'You do not have permission to create an admin',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    const roleRepo = this.dataSource.getRepository(Role);
+
+    const role = await roleRepo.findOneOrFail({
+      where: { name: 'ADMIN' },
+    });
+
+    const data = new User();
+    data.name = createAdminDto.name;
+    data.email = createAdminDto.email;
+    data.phone_number = createAdminDto.phone_number;
+    data.role = role;
+    data.salt = randomUUID();
+    data.password = await hashPassword(createAdminDto.password, data.salt);
+    data.status = createAdminDto.status;
+
+    const savedUser = await this.userRepository.save(data);
+
+    const userWithRelations = await this.userRepository.findOne({
+       where: { id: savedUser.id },
+       relations: ['role'] 
+    });
+
+    return userWithRelations || savedUser; // Return saved user
+  }
 
   async findAll(
     search: string,
+    status: string,
+    paket: string[],
+    sort_paket: string,
     startDate: string,
     endDate: string,
-    status: string,
     paginationDto: PaginationDto,
   ) {
     const { page, limit } = paginationDto;
@@ -215,6 +263,18 @@ export class UserService {
         '(user.name ILIKE :search OR user.email ILIKE :search OR user.customerId ILIKE :search)',
         { search: `%${search}%` },
       );
+    }
+
+    if (paket && paket.length > 0) {
+      qb.andWhere('paket.id IN (:...paket)', { paket });
+    }
+
+    if (sort_paket) {
+      if (sort_paket.toLowerCase() === 'asc') {
+        qb.addOrderBy('paket.price', 'ASC');
+      } else if (sort_paket.toLowerCase() === 'desc') {
+        qb.addOrderBy('paket.price', 'DESC');
+      }
     }
 
     if (startDate && endDate) {
@@ -246,7 +306,7 @@ export class UserService {
   async findOne(id: string) {
      const user = await this.userRepository.findOne({
       where: { id },
-      relations: ['role'],
+      relations: {role: true, paket: true, subscription: true},
     });
 
     if (!user) {
@@ -339,21 +399,32 @@ export class UserService {
     return this.userRepository.update(userId, { status: UserStatus.NONAKTIF });
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(id: string, updateUserDto: UpdateUserDto, roles: string) {
+    if (roles !== 'SUPERADMIN') {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          error: 'You do not have permission to update a user',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     return await this.dataSource.transaction(async (manager) => {
       const userRepo = manager.getRepository(User);
-      // const roleRepo = manager.getRepository(Role); // Uncomment if updating role
+      const paketRepo = manager.getRepository(Paket);
+      const paymentRepo = manager.getRepository(Payment);
 
       const user = await userRepo.findOne({
-         where: { id },
-         relations: ['role'] 
+        where: { id },
+        relations: ['role', 'paket'], 
       });
 
       if (!user) {
         throw new HttpException(
           {
             statusCode: HttpStatus.NOT_FOUND,
-            error: 'user not found',
+            error: 'User not found',
           },
           HttpStatus.NOT_FOUND,
         );
@@ -367,56 +438,142 @@ export class UserService {
           throw new HttpException(
             {
               statusCode: HttpStatus.BAD_REQUEST,
-              error: 'email already used',
+              error: 'Email already used',
             },
             HttpStatus.BAD_REQUEST,
           );
         }
       }
 
-      if (updateUserDto.phone_number && updateUserDto.phone_number !== user.phone_number) { 
-         const existingUser = await userRepo.findOne({
-           where: { phone_number: updateUserDto.phone_number },
-         });
-         if (existingUser) {
-           throw new HttpException(
-             {
-               statusCode: HttpStatus.BAD_REQUEST,
-               error: 'phone number already used',
-             },
-             HttpStatus.BAD_REQUEST,
-           );
-         }
+      if (updateUserDto.phone_number && updateUserDto.phone_number !== user.phone_number) {
+        const existingUser = await userRepo.findOne({
+          where: { phone_number: updateUserDto.phone_number },
+        });
+        if (existingUser) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.BAD_REQUEST,
+              error: 'Phone number already used',
+            },
+            HttpStatus.BAD_REQUEST,
+          );
+        }
       }
 
+      let newPaket: Paket | null = null;
+      let createdPayment: Payment | null = null; 
+
+      if (updateUserDto.paketsId && updateUserDto.paketsId !== user.paket?.id) {
+        if (updateUserDto.paketsId === null) {
+             newPaket = null;
+        } else {
+             newPaket = await paketRepo.findOne({
+               where: { id: updateUserDto.paketsId },
+             });
+
+             if (!newPaket) {
+               throw new HttpException(
+                 {
+                   statusCode: HttpStatus.BAD_REQUEST,
+                   error: 'Invalid paketsId provided',
+                 },
+                 HttpStatus.BAD_REQUEST,
+               );
+             }
+        }
+
+        if (newPaket && newPaket.id !== user.paket?.id) {
+            const bank = await userRepo.manager.getRepository(Bank).findOne({
+              where: { id: updateUserDto.bankId },
+            });
+            const payment = new Payment();
+            payment.user = user; 
+            payment.paket = newPaket; 
+            payment.price = newPaket.price; 
+            payment.status = 'PENDING'; 
+            payment.reason = `Upgrade/Change to ${newPaket.name} requested by SUPERADMIN. Awaiting payment.`;
+            payment.buktiPembayaran = '';
+            payment.bank = bank ?? undefined;
+
+            createdPayment = await paymentRepo.save(payment);
+            logger.log( randomInt(100) ,`Created pending payment #${createdPayment.id} for user ${user.id} upgrading to paket ${newPaket.id}`);
+        }
+      }
 
       const updateData: Partial<User> = {};
-      if (updateUserDto.name !== undefined) updateData.name = updateUserDto.name;
-      if (updateUserDto.email !== undefined) updateData.email = updateUserDto.email;
-      if (updateUserDto.phone_number !== undefined) updateData.phone_number = updateUserDto.phone_number;
-      if (updateUserDto.photo_ktp !== undefined) updateData.photo_ktp = updateUserDto.photo_ktp;
-      if (updateUserDto.alamat !== undefined) updateData.alamat = updateUserDto.alamat;
+      updateData.name = updateUserDto.name;
+      updateData.email = updateUserDto.email;
+      updateData.phone_number = updateUserDto.phone_number;
+      updateData.photo_ktp = updateUserDto.photo_ktp;
+      updateData.alamat = updateUserDto.alamat;
+      updateData.status = updateUserDto.status;
+      updateData.ip_address = updateUserDto.ip_address;
+      
+      // Handle password update if provided
       if (updateUserDto.password) {
          user.salt = randomUUID();
          user.password = await hashPassword(updateUserDto.password, user.salt);
+         updateData.salt = user.salt;
+         updateData.password = user.password;
       }
 
-      Object.assign(user, updateData);
+      if(updateUserDto.paketsId !== undefined) {
+          if(updateUserDto.paketsId === null) {
+              updateData.paket = null; // Or however you represent no paket
+          } else if(newPaket) {
+              updateData.paket = newPaket; // Assign the loaded Paket entity
+          }
+      }
 
-      const savedUser = await userRepo.save(user); // Save using transactional manager
+      Object.assign(user, updateData); // Apply validated updates to user instance
+
+      const savedUser = await userRepo.save(user);
 
       const userWithRelations = await userRepo.findOne({
-         where: { id: savedUser.id },
-         relations: ['role'] 
+        where: { id: savedUser.id },
+        relations: ['role', 'paket'], 
       });
 
+
       return {
-        data: userWithRelations || savedUser, // Return updated user
+        data: userWithRelations,
+        ...(createdPayment && { newPayment: createdPayment }), 
+        message: createdPayment
+          ? `User updated successfully. A new pending payment (#${createdPayment.id}) has been created for the requested package change.`
+          : 'User updated successfully.',
       };
     });
-
   }
 
+  async updateStatus(id: string, roles: string) {
+    if (roles !== 'SUPERADMIN') {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          error: 'You do not have permission to update user status',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'user not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    user.status = user.status === UserStatus.AKTIF ? UserStatus.NONAKTIF : UserStatus.AKTIF;
+
+    const savedUser = await this.userRepository.save(user);
+
+    return savedUser;
+  }
 
   async remove(id: string) {
     const user = await this.userRepository.findOne({ where: { id } });
