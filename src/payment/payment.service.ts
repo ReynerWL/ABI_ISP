@@ -221,9 +221,9 @@ async confirmPayment(paymentId: string) {
     page: number = 1,
     limit: number = 10,
   ) {
-    try{const qb = this.paymentRepository.createQueryBuilder('payment');
-
-    qb.where('payment.usersId = :userId', { userId });
+    try{
+    const qb = this.paymentRepository.createQueryBuilder('payment');
+    qb.where('payment.user_id = :userId', { userId });
 
     if (query) {
       qb.andWhere('payment.id LIKE :query', { query: `%${query}%` });
@@ -241,7 +241,7 @@ async confirmPayment(paymentId: string) {
     }
 
     qb.leftJoinAndSelect('payment.paket', 'paket')
-      .leftJoinAndSelect('payment.banks', 'banks')
+      .leftJoinAndSelect('payment.bank', 'bank')
       .leftJoinAndSelect('payment.user', 'user')
       .leftJoinAndSelect('user.subscription', 'subscription')
 
@@ -256,6 +256,7 @@ async confirmPayment(paymentId: string) {
       limit,
     };
   } catch (error) {
+    console.log(error);
     throw new HttpException(
       {
         statusCode: HttpStatus.NOT_FOUND,
