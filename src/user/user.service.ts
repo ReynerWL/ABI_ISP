@@ -241,15 +241,16 @@ export class UserService {
   async findAll(
     search: string,
     status: string,
-    paket: string[],
+    paket: string,
     sort_paket: string,
+    role: string,
     startDate: string,
     endDate: string,
     paginationDto: PaginationDto,
   ) {
     const { page, limit } = paginationDto;
-
-    const qb = this.userRepository
+    try {
+      const qb = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .leftJoinAndSelect('user.paket', 'paket');
@@ -265,16 +266,21 @@ export class UserService {
       );
     }
 
-    if (paket && paket.length > 0) {
-      qb.andWhere('paket.id IN (:...paket)', { paket });
+    if (paket) {
+      const pakets = paket.split(',').map(p => p.trim());
+      qb.andWhere('paket.speed IN (:...pakets)', { pakets });
     }
 
     if (sort_paket) {
       if (sort_paket.toLowerCase() === 'asc') {
-        qb.addOrderBy('paket.price', 'ASC');
+        qb.addOrderBy('paket.speed', 'ASC');
       } else if (sort_paket.toLowerCase() === 'desc') {
-        qb.addOrderBy('paket.price', 'DESC');
+        qb.addOrderBy('paket.speed', 'DESC');
       }
+    }
+
+    if (role) {
+      qb.andWhere('role.name = :role', { role });
     }
 
     if (startDate && endDate) {
@@ -301,6 +307,15 @@ export class UserService {
       data,
       pagination,
     };
+    } catch (error) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.BAD_REQUEST,
+          error: 'An error occurred while fetching users',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 
   async findOne(id: string) {

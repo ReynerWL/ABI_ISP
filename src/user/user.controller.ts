@@ -18,7 +18,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ExtendedRequest } from '#/core/request';
 import { RegisterDto } from './dto/register.dto';
 import { Public } from '#/auth/public.decorator';
-import { PaginationDto } from '#/utils/pagination.dto';
+import { PaginationDto} from '#/utils/pagination.dto';
 import { RolesGuard } from '#/core/roles.guard';
 
 @Controller('user')
@@ -60,17 +60,19 @@ export class UserController {
     @Request() req: ExtendedRequest,
     @Query('search') search: string,
     @Query('status') status: string,
-    @Query('paket') paket: string[],
+    @Query('paket') paket: string,
     @Query('sort_paket') sort_paket: string,
+    @Query('role') role: string,
     @Query('start_date') start_date: string,
     @Query('end_date') end_date: string,
     @Query() paginationDto: PaginationDto,
-  ) {
+  ) {  
     const data = await this.userService.findAll(
       search,
       status,
       paket,
       sort_paket,
+      role,
       start_date,
       end_date,
       paginationDto,
