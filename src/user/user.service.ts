@@ -241,8 +241,8 @@ export class UserService {
   async findAll(
     search: string,
     status: string,
+    paket_speed: string,
     paket: string,
-    sort_paket: string,
     role: string,
     startDate: string,
     endDate: string,
@@ -266,15 +266,15 @@ export class UserService {
       );
     }
 
-    if (paket) {
-      const pakets = paket.split(',').map(p => p.trim());
+    if (paket_speed) {
+      const pakets = paket_speed.split(',').map(p => p.trim());
       qb.andWhere('paket.speed IN (:...pakets)', { pakets });
     }
 
-    if (sort_paket) {
-      if (sort_paket.toLowerCase() === 'asc') {
+    if (paket) {
+      if (paket.toLowerCase() === 'asc') {
         qb.addOrderBy('paket.speed', 'ASC');
-      } else if (sort_paket.toLowerCase() === 'desc') {
+      } else if (paket.toLowerCase() === 'desc') {
         qb.addOrderBy('paket.speed', 'DESC');
       }
     }
