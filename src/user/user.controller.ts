@@ -13,7 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateAdminDto, CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ExtendedRequest } from '#/core/request';
 import { RegisterDto } from './dto/register.dto';
@@ -37,9 +37,9 @@ export class UserController {
 
   @Post('create-admin')
   @UseGuards(RolesGuard)
-  async createAdmin(@Body() createUserDto: CreateUserDto, @Request() req: ExtendedRequest) {
+  async createAdmin(@Body() createUserDto: CreateAdminDto, @Request() req: ExtendedRequest) {
     return {
-      data: await this.userService.createAdmin(createUserDto, req.user.roles),
+      data: await this.userService.createAdmin(createUserDto, req.user.role),
       statusCode: HttpStatus.CREATED,
       message: 'success',
     };
@@ -110,7 +110,7 @@ export class UserController {
     @Request() req: ExtendedRequest,
   ) {
     return {
-      data: await this.userService.update(id, updateUserDto, req.user.roles),
+      data: await this.userService.update(id, updateUserDto, req.user.role),
       statusCode: HttpStatus.OK,
       message: 'success',
     };
@@ -122,7 +122,7 @@ export class UserController {
     @Request() req: ExtendedRequest,
   ) {
     return {
-      data: await this.userService.updateStatus(id,req.user.roles),
+      data: await this.userService.updateStatus(id,req.user.role),
       statusCode: HttpStatus.OK,
       message: 'success',
     };

@@ -204,7 +204,9 @@ export class UserService {
   }
 
   async createAdmin(createAdminDto: CreateAdminDto, roles: string) {
-    if (roles !== 'SUPERADMIN') {
+    console.log(roles);
+    
+    if (roles != 'SUPERADMIN') {
       throw new HttpException(
         {
           statusCode: HttpStatus.FORBIDDEN,
@@ -216,7 +218,7 @@ export class UserService {
     const roleRepo = this.dataSource.getRepository(Role);
 
     const role = await roleRepo.findOneOrFail({
-      where: { name: 'ADMIN' },
+      where: { name: ILike(`%admin%`) },
     });
 
     const data = new User();
