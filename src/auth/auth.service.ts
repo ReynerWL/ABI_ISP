@@ -137,7 +137,7 @@ export class AuthService {
       reset_token_expired: expired,
     });
 
-    const resetLink = `http://localhost:3000/reset-password?token=${token}`;
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
 
     await sendEmail({
       to: user.email,
