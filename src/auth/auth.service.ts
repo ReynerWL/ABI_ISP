@@ -11,6 +11,8 @@ import { PasswordResetToken } from '#/user/entities/passwordresettoken';
 import { add } from 'date-fns';
 import { sendEmail } from '#/core/send-email';
 import { ForgetPasswordDto } from './dto/forget-password';
+import { randomUUID } from 'crypto';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -115,6 +117,70 @@ export class AuthService {
         expiresIn: '1d',
       },
     );
+  }
+
+  async sendResetLink(email: string) {
+    const user = await this.usersRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new HttpException(
+        { statusCode: HttpStatus.NOT_FOUND, error: 'Email tidak ditemukan' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    // generate unique token
+    const token = randomUUID();
+    const expired = add(new Date(), { minutes: 15 });
+
+    await this.usersRepository.update(user.id, {
+      reset_token: token,
+      reset_token_expired: expired,
+    });
+
+    const resetLink = `http://localhost:3000/reset-password?token=${token}`;
+
+    await sendEmail({
+      to: user.email,
+      subject: 'Password Reset',
+      text: resetLink,
+      html: `
+        <h2>Reset Password</h2>
+        <p>Klik link di bawah ini untuk mengubah password Anda:</p>
+        <a href="${resetLink}" target="_blank">${resetLink}</a>
+        <p>Link ini berlaku selama 15 menit.</p>
+      `,
+    });
+
+    return { message: 'Reset link dikirim ke email Anda' };
+  }
+
+  async validateResetToken(token: string) {
+  const user = await this.usersRepository.findOne({ where: { reset_token: token } });
+
+    if (!user || new Date(user.reset_token_expired) < new Date()) {
+      throw new HttpException(
+        { statusCode: HttpStatus.BAD_REQUEST, error: 'Token tidak valid atau sudah kadaluarsa' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return user;
+  }
+
+  async resetPassword(token: string, new_password: string) {
+    const user = await this.validateResetToken(token);
+    const newSalt = crypto.randomBytes(16).toString('hex');
+    const newPassword = await hashPassword(new_password, newSalt);
+  
+    user.reset_token = null;
+    user.reset_token_expired = null;
+  
+    await this.usersRepository.update(user.id, {
+      password: newPassword,
+      salt: newSalt,
+    });
+  
+    return { message: 'Password berhasil diubah' };
   }
 
   async forgetPassword(forgetPasswordDto: ForgetPasswordDto) {
