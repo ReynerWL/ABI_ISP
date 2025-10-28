@@ -96,4 +96,14 @@ export class AuthController {
       message: 'success',
     };
   }
+
+  @Post('forget-password/send-link')
+  async sendResetLink(@Body() body: SendTokenDto) {
+    return this.authService.sendResetLink(body.email);
+  }
+
+  @Post('forget-password/reset')
+  async resetPassword(@Body() body: ForgetPasswordDto) {
+    return this.authService.resetPassword(body.token, body.new_password);
+  }
 }

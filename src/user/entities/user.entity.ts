@@ -29,7 +29,7 @@ export enum UserStatus {
 }
 
 @Entity('users')
-export class  User {
+export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -108,7 +108,7 @@ export class  User {
   })
   priority: boolean;
 
-  @Column({nullable: true, unique: true})
+  @Column({ nullable: true, unique: true })
   ip_address: string;
 
   @Column({ nullable: true, type: 'timestamp with time zone' })
@@ -162,7 +162,9 @@ export class  User {
   )
   payments: Payment[];
 
-  @OneToOne(() => Subscription, (subscription) => subscription.user, { eager: true })
+  @OneToOne(() => Subscription, (subscription) => subscription.user, {
+    eager: true,
+  })
   @JoinColumn({ name: 'subscription_id' })
   subscription: Subscription;
 
@@ -185,6 +187,12 @@ export class  User {
     },
   )
   reportPetugas?: Report[];
+
+  @Column({ nullable: true })
+  reset_token: string;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  reset_token_expired: Date;
 
   @OneToMany(() => PasswordResetToken, (token) => token.user)
   resetTokens: PasswordResetToken[];
