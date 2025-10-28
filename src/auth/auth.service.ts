@@ -40,7 +40,7 @@ export class AuthService {
       );
     }
 
-    if (dataUser.status != 'Aktif' && dataUser.role.name == 'ADMIN') {
+    if (dataUser.status != 'Aktif' && dataUser.role.name == 'Admin') {
       throw new HttpException(
         {
           statusCode: HttpStatus.UNAUTHORIZED,
@@ -71,6 +71,7 @@ export class AuthService {
           'phone_number',
           'salt',
           'password',
+          'status',
           'role',
         ],
       });

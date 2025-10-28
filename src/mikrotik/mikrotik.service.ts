@@ -63,36 +63,88 @@ export class MikrotikService {
     return api;
   }
 
-  async testConnection(connectionId?: string): Promise<{ success: boolean; message: string }> {
-    try {
-      let connection: MikroTikConnection | null;
-      if (connectionId) {
-        connection = await this.mikrotikConnectionRepository.findOneBy({ id: connectionId });
-        if (!connection) {
-          throw new NotFoundException(`Connection with ID ${connectionId} not found.`);
-        }
-      } else {
-        connection = await this.getActiveConnection();
-      }
+// src/mikrotik/mikrotik.service.ts
 
-      const protocol = connection.port === 443 ? 'https' : 'http';
-      const baseURL = `${protocol}://${connection.host}:${connection.port}/rest`;
-      const auth: AxiosBasicCredentials = {
-        username: connection.username,
-        password: connection.password,
-      };
-
-      const response = await axios.get(`${baseURL}/system/resource`, { auth, timeout: 5000 });
-      if (response.status === 200) {
-        return { success: true, message: 'Connection successful' };
-      } else {
-        return { success: false, message: `Unexpected response status: ${response.status}` };
+async testConnection(connectionId?: string): Promise<{ success: boolean; message: string }> {
+  let connection: MikroTikConnection | null;
+  try {
+    if (connectionId) {
+      connection = await this.mikrotikConnectionRepository.findOneBy({ id: connectionId });
+      if (!connection) {
+        throw new NotFoundException(`Connection with ID ${connectionId} not found.`);
       }
-    } catch (error) {
-      this.logger.error('MikroTik connection test failed:', error.message);
-      return { success: false, message: `Connection failed: ${error.message}` };
+    } else {
+      connection = await this.getActiveConnection();
     }
+
+    // --- Determine Protocol ---
+    // More robust protocol determination based on common ports
+    let protocol: string;
+    if (connection.port === 443 || connection.port === 8729) {
+      protocol = 'https';
+    } else if (connection.port === 80 || connection.port === 8728) {
+      protocol = 'http';
+    } else {
+      // Default assumption, might be wrong. Log this.
+      protocol = connection.port === 443 ? 'https' : 'http'; // Keep your existing logic as fallback
+      this.logger.warn(`Uncommon port ${connection.port} detected. Assuming protocol: ${protocol}. Verify MikroTik service configuration.`);
+    }
+
+    const baseURL = `${protocol}://${connection.host}:${connection.port}/rest`;
+    const auth: AxiosBasicCredentials = {
+      username: connection.username,
+      password: connection.password,
+    };
+
+    this.logger.debug(`Attempting to connect to MikroTik at ${baseURL} with user ${auth.username}`);
+
+    // --- Perform the Request ---
+    // Increased timeout for testing, consider making configurable
+    const response = await axios.get(`${baseURL}/system/resource`, {
+      auth,
+      timeout: 15000, // Increased timeout to 15 seconds for testing
+      // --- Handle Self-Signed Certificates (FOR TESTING ONLY!) ---
+      // NEVER do this in production. Fix the cert properly.
+      httpsAgent: new (require('https')).Agent({ rejectUnauthorized: false }), // Import 'https' at the top
+      // --- Optional: Add better error logging ---
+    });
+
+    if (response.status === 200) {
+      this.logger.log(`✅ Successfully connected to MikroTik at ${baseURL}`);
+      return { success: true, message: 'Connection successful' };
+    } else {
+      const errorMsg = `Unexpected response status: ${response.status} - ${response.statusText}`;
+      this.logger.warn(`⚠️ Unexpected response from MikroTik (${baseURL}): ${errorMsg}`);
+      return { success: false, message: errorMsg };
+    }
+  } catch (error) {
+    // --- Enhanced Error Logging ---
+    let errorMessage = 'Unknown error';
+    if (error.code) {
+      errorMessage = `Network/System Error Code: ${error.code}`;
+      // Common codes:
+      // ECONNREFUSED: Connection refused (service down/port blocked)
+      // ETIMEDOUT: Operation timed out (firewall/network)
+      // ENOTFOUND: DNS lookup failed (wrong host?)
+    } else if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      errorMessage = `HTTP Error ${error.response.status}: ${error.response.statusText}`;
+      if (error.response.data) {
+        errorMessage += ` - Details: ${JSON.stringify(error.response.data).substring(0, 200)}...`; // Truncate
+      }
+    } else if (error.request) {
+      // The request was made but no response was received
+      errorMessage = `No response received. Details: ${error.message}`;
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      errorMessage = `Request setup error: ${error.message}`;
+    }
+
+    this.logger.error(`❌ MikroTik connection test failed for ${ connection.host || 'unknown host'}:${connection?.port || 'unknown port'}`, errorMessage);
+    return { success: false, message: `Connection failed: ${errorMessage}` };
   }
+}
 
 
   async blockUserByUserId(userId: string): Promise<{ success: boolean; message: string }> {

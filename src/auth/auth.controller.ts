@@ -59,6 +59,7 @@ export class AuthController {
   }
 }
 
+@Public()
   @Post('forget-password/send-token')
   async sendToken(@Body() sendTokenDto: SendTokenDto) {
     await this.authService.sendToken(sendTokenDto.email);
@@ -69,6 +70,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('forget-password/validate')
   async validatePasswordToken(
     @Body() validatePasswordToken: ValidatePasswordTokenDto,
@@ -84,6 +86,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('forget-password')
   async forgetPassword(@Body() forgetPasswordDto: ForgetPasswordDto) {
     await this.authService.forgetPassword(forgetPasswordDto);
