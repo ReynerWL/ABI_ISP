@@ -43,7 +43,7 @@ export class AuthController {
       relations: ['role'],
     });
 
-    if (user.status != 'Aktif' && user.role.name == 'ADMIN') {
+    if (user.status != 'Aktif' && user.role.name == 'Admin') {
       throw new HttpException(
         {
           statusCode: HttpStatus.UNAUTHORIZED,
