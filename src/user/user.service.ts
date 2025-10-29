@@ -553,7 +553,7 @@ export class UserService {
 
       Object.assign(user, updateData); // Apply validated updates to user instance
 
-      const savedUser = await userRepo.update(id, user)
+      const savedUser = await userRepo.update(user.id, user)
 
       const userWithRelations = await userRepo.findOne({
         where: { id: savedUser.affected[0].id },
