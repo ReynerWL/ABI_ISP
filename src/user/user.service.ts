@@ -526,7 +526,7 @@ export class UserService {
         }
       }
 
-      const updateData: Partial<User> = {};
+      const updateData = new User();
       updateData.name = updateUserDto.name;
       updateData.email = updateUserDto.email;
       updateData.phone_number = updateUserDto.phone_number;
@@ -553,10 +553,10 @@ export class UserService {
 
       Object.assign(user, updateData); // Apply validated updates to user instance
 
-      const savedUser = await userRepo.save(user);
+      const savedUser = await userRepo.update(id, user)
 
       const userWithRelations = await userRepo.findOne({
-        where: { id: savedUser.id },
+        where: { id: savedUser.affected[0].id },
         relations: ['role', 'paket'], 
       });
 
