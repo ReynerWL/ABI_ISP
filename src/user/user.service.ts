@@ -246,6 +246,7 @@ export class UserService {
     paket_speed: string,
     paket: string,
     role: string,
+    created_at: string,
     startDate: string,
     endDate: string,
     paginationDto: PaginationDto,
@@ -283,6 +284,14 @@ export class UserService {
 
     if (role) {
       qb.andWhere('role.name = :role', { role });
+    }
+
+    if (created_at) {
+      if (created_at.toLowerCase() == 'asc') {
+        qb.addOrderBy('user.createdAt', 'ASC');
+      } else if (created_at.toLowerCase() == 'desc') {
+        qb.addOrderBy('user.createdAt', 'DESC');
+      }
     }
 
     if (startDate && endDate) {
