@@ -63,7 +63,7 @@ export class SubscriptionService {
   async findOne(id: string) {
     const subscription = await this.subscriptionRepository.findOne({
       where: { id },
-      relations: ['user', 'pakets', 'banks'],
+      relations: { paket: true, banks: true, user: true },
     });
 
     if (!subscription) {

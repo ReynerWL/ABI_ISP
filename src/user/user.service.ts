@@ -88,6 +88,10 @@ export class UserService {
       data.alamat = createUserDto.alamat;
       data.status = createUserDto.status;
       data.priority = createUserDto.priority;
+      data.ip_address = createUserDto.ip_address;
+      data.paket = await manager.getRepository(Paket).findOneOrFail({
+        where: { id: createUserDto.paketsId },
+      });
 
       const userCount = (await userRepo.count()) + 1;
       const date = new Date();
@@ -138,10 +142,6 @@ export class UserService {
         }
       }
 
-      const paket = await paketRepo.findOneOrFail({
-        where: { id: registerDto.payment.paketId },
-      });
-
       const role = await roleRepo.findOneOrFail({
         where: { name: ILike(`%user%`) }, 
       });
@@ -160,7 +160,9 @@ export class UserService {
       data.kecamatan = registerDto.kecamatan;
       data.kelurahan = registerDto.kelurahan;
       data.role = role;
-      data.paket = paket; 
+      data.paket = await paketRepo.findOneOrFail({
+        where: { id: registerDto.payment.paketId },
+      }); 
 
       const userCount = (await userRepo.count()) + 1;
       const date = new Date();
@@ -176,7 +178,7 @@ export class UserService {
       const bank: Bank | null = await bankRepo.findOne({
         where: { id: registerDto.payment.banksId },
       });
-      payment.paket = paket;
+      payment.paket = data.paket;
       payment.bank = bank ?? undefined; 
       payment.user = savedUser; 
       payment.price = registerDto.payment.price;
@@ -332,7 +334,7 @@ export class UserService {
   async findOne(id: string) {
      const user = await this.userRepository.findOne({
       where: { id },
-      relations: {role: true, paket: true, subscription: true},
+      relations: {role: true, paket: true, subscription: {paket: true}},
     });
 
     if (!user) {
@@ -441,10 +443,7 @@ export class UserService {
       const paketRepo = manager.getRepository(Paket);
       const paymentRepo = manager.getRepository(Payment);
 
-      const user = await userRepo.findOne({
-        where: { id },
-        relations: ['role', 'paket'], 
-      });
+      const user = await this.findOne(id)
 
       if (!user) {
         throw new HttpException(
@@ -486,39 +485,6 @@ export class UserService {
         }
       }
 
-      let newPaket: Paket | null = null;
-      let createdPayment: Payment | null = null;
-      if (updateUserDto.paketsId && updateUserDto.paketsId !== user.paket?.id) {
-         newPaket = await paketRepo.findOne({
-               where: { id: updateUserDto.paketsId },
-          });
-             if (!newPaket) {
-               throw new HttpException(
-                 {
-                   statusCode: HttpStatus.BAD_REQUEST,
-                   error: 'Invalid paketsId provided',
-                 },
-                 HttpStatus.BAD_REQUEST,
-               );
-             }
-
-        if (newPaket && newPaket.id !== user.paket?.id) {
-            const bank = await userRepo.manager.getRepository(Bank).findOne({
-              where: { id: updateUserDto.bankId },
-            });
-            const payment = new Payment();
-            payment.user = user; 
-            payment.paket = newPaket; 
-            payment.price = newPaket.price; 
-            payment.status = 'PENDING'; 
-            payment.reason = `Upgrade/Change to ${newPaket.name} requested by SUPERADMIN. Awaiting payment.`;
-            payment.buktiPembayaran = '';
-            payment.bank = bank ?? undefined;
-
-            createdPayment = await paymentRepo.save(payment);
-        }
-      }
-
       const updateData = new User();
       updateData.name = updateUserDto.name;
       updateData.email = updateUserDto.email;
@@ -527,6 +493,7 @@ export class UserService {
       updateData.alamat = updateUserDto.alamat;
       updateData.status = updateUserDto.status;
       updateData.ip_address = updateUserDto.ip_address;
+      updateData.paket = user.paket;
       
       // Handle password update if provided
       if (updateUserDto.password) {
@@ -536,17 +503,36 @@ export class UserService {
          updateData.password = user.password;
       }
 
-      if(updateUserDto.paketsId != undefined) {
-        updateData.paket = newPaket
-      }
-
       await this.userRepository.update(user.id, updateData)
+
+      let createdPayment: Payment | null = null;
+      // Handle paket change and create pending payment if paketId is provided  
+      if (updateUserDto.paketsId && updateUserDto.paketsId !== user.paket?.id) {
+        const newPaket = await paketRepo.findOne({
+          where: { id: updateUserDto.paketsId },
+        });
+        if (!newPaket) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.NOT_FOUND,
+              error: 'Paket not found',
+            },
+            HttpStatus.NOT_FOUND,
+          );
+        }
+
+        const payment = new Payment();
+        payment.user = user;
+        payment.paket = newPaket;
+        payment.price = newPaket.price; 
+        payment.status = 'PENDING';
+        createdPayment = await paymentRepo.save(payment);
+      }
 
       const userWithRelations = await userRepo.findOne({
         where: { id: user.id },
-        relations: ['role', 'paket'], 
+        relations: {role: true, paket: true}, 
       });
-
 
       return {
         data: userWithRelations,

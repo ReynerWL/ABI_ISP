@@ -44,7 +44,7 @@ export class Subscription {
   })
   deletedAt: Date | null;
 
-  @OneToOne(() => User, (user) => user.subscription)
+  @OneToOne(() => User, user => user.subscription)
   user: User;
 
   @ManyToOne(

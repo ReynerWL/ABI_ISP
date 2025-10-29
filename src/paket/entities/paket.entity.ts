@@ -77,7 +77,7 @@ export class Paket {
       return subscription.paket;
     },
   )
-  subscriptions?: Subscription;
+  subscriptions?: Subscription[]
 
   @OneToMany(
     () => {

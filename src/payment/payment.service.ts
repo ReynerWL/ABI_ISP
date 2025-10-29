@@ -103,8 +103,7 @@ async confirmPayment(paymentId: string) {
   // Get user's latest active subscription
   const latestSubscription = await this.dataSource.manager.findOne(Subscription, {
     where: { user: { id: payment.user.id } },
-    order: { start_date: 'DESC' },
-    relations: ['user'],
+    relations: {user:true, paket:true},
   });
 
   let startDate: Date;
@@ -123,12 +122,25 @@ async confirmPayment(paymentId: string) {
   const startDateStr = startDate.toISOString();
   const dueDateStr = dueDate.toISOString();
 
-  await this.dataSource.manager.save(Subscription, {
+if (latestSubscription !== null) {
+  await this.dataSource.manager.update(Subscription, latestSubscription.id, {
+    start_date: startDateStr,
+    due_date: dueDateStr,
+    paket: payment.paket,
+    banks: payment.bank,
+  });
+} else {
+   await this.dataSource.manager.save(Subscription, {
     start_date: startDateStr,
     due_date: dueDateStr,
     paket: payment.paket,
     banks: payment.bank,
     user: payment.user,
+  });
+}
+  await this.dataSource.manager.update(User, payment.user.id, {
+    subscription: payment.user.subscription,
+    paket: payment.paket,
   });
 
   await this.paymentRepository.update(paymentId, {
@@ -140,7 +152,7 @@ async confirmPayment(paymentId: string) {
 
   return await this.dataSource.manager.findOne(Payment, {
     where: { id: payment.id },
-    relations: {user:{subscription:true}, paket: true, bank: true }
+    relations: {user:{subscription:{paket:true}}, paket: true, bank: true }
   });
 }
   // src/payment/payment.service.ts

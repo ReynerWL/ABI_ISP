@@ -162,10 +162,11 @@ export class User {
   )
   payments: Payment[];
 
-  @OneToOne(() => Subscription, (subscription) => subscription.user, {
-    eager: true,
+  @OneToOne(() => Subscription, subscription => subscription.user, {
+    eager: true, // Optional: auto-load subscription with user
+    cascade: true, // Optional: save/update subscription when saving user
   })
-  @JoinColumn({ name: 'subscription_id' })
+  @JoinColumn({ name: 'subscription_id' }) // This creates the FK column in `users`
   subscription: Subscription;
 
   @OneToMany(
