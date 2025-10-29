@@ -1,4 +1,4 @@
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreatePaymentDto {
   @IsNotEmpty()
@@ -16,7 +16,9 @@ export class CreatePaymentDto {
   @IsNotEmpty()
   buktiPembayaran: string;
 
+  @IsOptional()
   reason: string;
   
+  @IsOptional()
   status: 'PENDING' | 'CONFIRMED' | 'REJECTED';
 }

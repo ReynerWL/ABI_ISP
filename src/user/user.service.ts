@@ -487,16 +487,11 @@ export class UserService {
       }
 
       let newPaket: Paket | null = null;
-      let createdPayment: Payment | null = null; 
-
+      let createdPayment: Payment | null = null;
       if (updateUserDto.paketsId && updateUserDto.paketsId !== user.paket?.id) {
-        if (updateUserDto.paketsId === null) {
-             newPaket = null;
-        } else {
-             newPaket = await paketRepo.findOne({
+         newPaket = await paketRepo.findOne({
                where: { id: updateUserDto.paketsId },
-             });
-
+          });
              if (!newPaket) {
                throw new HttpException(
                  {
@@ -506,7 +501,6 @@ export class UserService {
                  HttpStatus.BAD_REQUEST,
                );
              }
-        }
 
         if (newPaket && newPaket.id !== user.paket?.id) {
             const bank = await userRepo.manager.getRepository(Bank).findOne({
@@ -522,7 +516,6 @@ export class UserService {
             payment.bank = bank ?? undefined;
 
             createdPayment = await paymentRepo.save(payment);
-            logger.log( randomInt(100) ,`Created pending payment #${createdPayment.id} for user ${user.id} upgrading to paket ${newPaket.id}`);
         }
       }
 
@@ -543,20 +536,14 @@ export class UserService {
          updateData.password = user.password;
       }
 
-      if(updateUserDto.paketsId !== undefined) {
-          if(updateUserDto.paketsId === null) {
-              updateData.paket = null; // Or however you represent no paket
-          } else if(newPaket) {
-              updateData.paket = newPaket; // Assign the loaded Paket entity
-          }
+      if(updateUserDto.paketsId != undefined) {
+        updateData.paket = newPaket
       }
 
-      Object.assign(user, updateData); // Apply validated updates to user instance
-
-      const savedUser = await userRepo.update(user.id, user)
+      await this.userRepository.update(user.id, updateData)
 
       const userWithRelations = await userRepo.findOne({
-        where: { id: savedUser.affected[0].id },
+        where: { id: user.id },
         relations: ['role', 'paket'], 
       });
 
