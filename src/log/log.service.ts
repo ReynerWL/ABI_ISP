@@ -27,7 +27,10 @@ export class LogService {
   }
 
   // Optional: Add methods to query logs
-  async findAll(page: number = 1, limit: number = 10) {
+  async findAll(role: string,page: number = 1, limit: number = 10) {
+    if(role.toLocaleLowerCase() != 'superadmin'){
+      throw new Error('Unauthorized');
+    }
     return this.logRepository.find({
       skip: (page - 1) * limit,
       take: limit,

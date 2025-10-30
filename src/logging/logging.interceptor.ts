@@ -4,59 +4,68 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
-  Logger, // Use NestJS Logger for interceptor-level logs
+  Logger,
+  SetMetadata, // Import SetMetadata
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
-import { Request, Response } from 'express';
-import { LogService } from '../log/log.service'; // Adjust path if needed
+import { Request, response, Response } from 'express';
+import { LogService } from '../log/log.service';
 import { Reflector } from '@nestjs/core';
+
+// Define a custom metadata key
+export const SKIP_LOGGING = 'skipLogging';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
-  private readonly logger = new Logger(LoggingInterceptor.name); // Local logger for interceptor issues
+  private readonly logger = new Logger(LoggingInterceptor.name);
 
   constructor(
-    private readonly logService: LogService, // Inject LogService
-    private readonly reflector: Reflector,   // Inject Reflector
+    private readonly logService: LogService,
+    private readonly reflector: Reflector,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    // --- Optional: Skip logging for specific routes ---
-    // const skipLogging = this.reflector.get<boolean>('skipLogging', context.getHandler());
-    // if (skipLogging) {
-    //   return next.handle();
-    // }
+    // --- NEW: Check if logging should be skipped ---
+    // First check route handler, then controller class
+    const skipLogging = this.reflector.getAllAndOverride<boolean>(SKIP_LOGGING, [
+      context.getHandler(), // Method-level metadata
+      context.getClass(),   // Class-level metadata
+    ]);
 
+    if (skipLogging) {
+      return next.handle(); // Skip logging entirely
+    }
+
+    // --- NEW: Skip logging for /log routes ---
     const ctx = context.switchToHttp();
     const request = ctx.getRequest<Request>();
-    const response = ctx.getResponse<Response>();
+    if (request.url.startsWith('/log')) {
+      return next.handle(); // Skip logging for /log* endpoints
+    }
+    // --- END NEW ---
+
     const startTime = Date.now();
 
     const { method, originalUrl, body, headers, ip } = request;
     const userAgent = headers['user-agent'] || '';
-
-    // Get user info if attached by auth middleware/guard
     const user = (request as any).user;
 
-    // --- Prepare base log data ---
     const baseLogData: any = {
       timestamp: new Date().toISOString(),
       method,
       url: originalUrl,
       userAgent,
       ip,
-      user: user ? { id: user.id, email: user.email, customerId: user.customerId } : undefined,
-      // Avoid logging full body by default - can be huge or contain secrets
-      // requestBody: body,
-      durationMs: -1, // Placeholder, will be updated later
-      statusCode: -1, // Placeholder
-      error: null, // Placeholder
+      user: user ? { id: user.id, name: user.name } : undefined,
+      durationMs: -1,
+      statusCode: -1,
+      error: null,
     };
 
     return next.handle().pipe(
       tap({
-        next: (data) => { // Removed async, use setImmediate for async tasks
+        next: (data) => {
           const duration = Date.now() - startTime;
           const statusCode = response.statusCode;
 
@@ -64,22 +73,16 @@ export class LoggingInterceptor implements NestInterceptor {
             ...baseLogData,
             durationMs: duration,
             statusCode: statusCode,
-            // Avoid logging full response body by default - can be huge or contain secrets
-            // responseBody: data,
           };
 
           this.logger.log(
             `✅ Request Completed: ${method} ${originalUrl} ${statusCode} - ${duration}ms`,
           );
 
-          // --- Save to database asynchronously ---
-          // Use setImmediate to avoid blocking the response
           setImmediate(async () => {
             try {
               await this.logService.createLogEntry(logDataToSave);
-              // this.logger.debug(`💾 Log entry created for ${method} ${originalUrl}`);
             } catch (dbError) {
-              // Log database errors separately to avoid polluting API response logs
               this.logger.error(`❌ Failed to save log entry to DB for ${method} ${originalUrl}`, dbError.stack);
             }
           });
@@ -87,7 +90,7 @@ export class LoggingInterceptor implements NestInterceptor {
       }),
       catchError((error) => {
         const duration = Date.now() - startTime;
-        const statusCode = error.status || 500; // Get status from HttpException or default to 500
+        const statusCode = error.status || 500;
 
         const errorLogDataToSave = {
           ...baseLogData,
@@ -96,8 +99,7 @@ export class LoggingInterceptor implements NestInterceptor {
           error: {
             message: error.message,
             stack: error.stack,
-            // Add other relevant error properties if needed
-            response: error.response // Contains DTO validation errors etc.
+            response: error.response,
           },
         };
 
@@ -106,17 +108,14 @@ export class LoggingInterceptor implements NestInterceptor {
           error.stack,
         );
 
-        // --- Save error log to database asynchronously ---
         setImmediate(async () => {
           try {
             await this.logService.createLogEntry(errorLogDataToSave);
-            // this.logger.debug(`💾 Error log entry created for ${method} ${originalUrl}`);
           } catch (dbError) {
             this.logger.error(`💥 Failed to save ERROR log entry to DB for ${method} ${originalUrl}`, dbError.stack);
           }
         });
 
-        // Re-throw the error so it can be handled by exception filters
         throw error;
       }),
     );
