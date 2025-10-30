@@ -28,6 +28,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './logging/logging.interceptor';
 import { UserContextMiddleware } from './middleware/user-context.middleware';
 import { MikrotikModule } from './mikrotik/mikrotik.module';
+import { LogModule } from './log/log.module';
 require('dotenv').config();
 
 @Module({
@@ -145,7 +146,8 @@ require('dotenv').config();
     FileModule,
     DashboardModule,
     QrisModule,
-    MikrotikModule
+    MikrotikModule,
+    LogModule
   ],
   providers: [
     {

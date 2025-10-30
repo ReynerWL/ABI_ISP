@@ -1,18 +1,41 @@
-import { Injectable } from '@nestjs/common';
+// src/log/log.service.ts
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Log } from './log.entity';
 
 @Injectable()
 export class LogService {
+  private readonly logger = new Logger(LogService.name);
+
   constructor(
     @InjectRepository(Log)
-    private logRepository: Repository<Log>,
+    private readonly logRepository: Repository<Log>,
   ) {}
 
   async createLogEntry(data: any) {
-    const log = new Log();
-    log.data = data;
-    return await this.logRepository.save(log);
+    try {
+      const log = new Log();
+      log.data = data;
+      const savedLog = await this.logRepository.save(log);
+      this.logger.debug(`✅ Log entry saved with ID: ${savedLog.id}`);
+      return savedLog;
+    } catch (error) {
+      this.logger.error('❌ Failed to save log entry', error.stack);
+      throw error; // Re-throw so interceptor can catch and log the DB error
+    }
+  }
+
+  // Optional: Add methods to query logs
+  async findAll(page: number = 1, limit: number = 10) {
+    return this.logRepository.find({
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findOne(id: string) {
+    return this.logRepository.findOne({ where: { id } });
   }
 }
