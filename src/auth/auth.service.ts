@@ -50,7 +50,7 @@ export class AuthService {
         },
         HttpStatus.UNAUTHORIZED,
       );
-    }else if (dataUser.role.name == 'ADMIN' && dataUser.status == 'Aktif'){
+    }else if (dataUser.role.name == 'Admin' && dataUser.status == 'Aktif'){
       await this.usersRepository.update(dataUser.id, {
         last_login: new Date(),
       });

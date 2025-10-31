@@ -11,6 +11,7 @@ import {
 import { ReportService } from './report.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
+import { SkipLogging } from '#/logging/skip-logging.decorator';
 
 @Controller('report')
 export class ReportController {
@@ -22,6 +23,7 @@ export class ReportController {
   }
 
   @Get()
+  @SkipLogging()
   findAll(
     @Query('query') query?: string,
     @Query('startDate') startDate?: string,

@@ -1,6 +1,7 @@
 import { Controller, Get, Query, Request} from "@nestjs/common";
 import { LogService } from "./log.service";
 import { ExtendedRequest } from "#/core/request";
+import { SkipLogging } from "#/logging/skip-logging.decorator";
 
 @Controller('log')
 export class LogController {
@@ -9,6 +10,7 @@ export class LogController {
 ) {}
 
   @Get()
+  @SkipLogging()
   async findAll(
     @Request() req: ExtendedRequest,
     @Query('page') page: number = 1,

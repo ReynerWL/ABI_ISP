@@ -2,14 +2,14 @@
 import { Controller, Get, Post, HttpCode, Query } from '@nestjs/common';
 import { WhatsAppService } from './bot/wa.service';
 import { Public } from '#/auth/public.decorator';
+import { SkipLogging } from '#/logging/skip-logging.decorator';
 
 @Controller('wa')
 export class WhatsAppController {
   constructor(private waService: WhatsAppService) {}
 
-  @Public()
-@Get('qr')
-getQrCode() {
+  @Get('qr')
+  getQrCode() {
   const base64DataUrl = this.waService.getQrCode();
   if (base64DataUrl) {
      return { qrCodeDataUrl: base64DataUrl }; // e.g., { qrCodeDataUrl: "data:image/png;base64,iVBOR..." }
@@ -18,8 +18,8 @@ getQrCode() {
   }
 }
 
-  @Public()
   @Get('status')
+  @SkipLogging()
   getStatus() {
     return this.waService.getStatus();
   }

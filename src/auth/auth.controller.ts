@@ -18,6 +18,7 @@ import { ValidatePasswordTokenDto } from './dto/validate-password-token';
 import { ForgetPasswordDto } from './dto/forget-password';
 import { DataSource } from 'typeorm';
 import { User } from '#/user/entities/user.entity';
+import { SkipLogging } from '#/logging/skip-logging.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -37,6 +38,7 @@ export class AuthController {
   }
 
   @Get('validate-token')
+  @SkipLogging()
   async validateToken(@Request() req: ExtendedRequest) {
     const user = await this.dataSource.getRepository(User).findOne({
       where: { id: req.user.id },

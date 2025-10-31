@@ -17,6 +17,7 @@ import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { ExtendedRequest } from '#/core/request';
+import { SkipLogging } from '#/logging/skip-logging.decorator';
 
 @Controller('payment')
 export class PaymentController {
@@ -29,6 +30,7 @@ export class PaymentController {
 
   // src/payment/payment.controller.ts
   @Get()
+  @SkipLogging()
   async findAll(
     @Query('query') query?: string,
     @Query('startDate') startDate?: string,
@@ -52,6 +54,7 @@ export class PaymentController {
   }
 
   @Get('user')
+  @SkipLogging()
   findAllByUser(
     @Request() req: ExtendedRequest,
     @Query('query') query?: string,
@@ -99,7 +102,7 @@ export class PaymentController {
     };
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param('id') id: string, @Body() updatePaymentDto: UpdatePaymentDto) {
     return this.paymentService.update(id, updatePaymentDto);
   }

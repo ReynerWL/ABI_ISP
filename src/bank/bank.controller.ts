@@ -12,6 +12,7 @@ import { BankService } from './bank.service';
 import { CreateBankDto } from './dto/create-bank.dto';
 import { UpdateBankDto } from './dto/update-bank.dto';
 import { Public } from '#/auth/public.decorator';
+import { SkipLogging } from '#/logging/skip-logging.decorator';
 
 @Controller('bank')
 export class BankController {
@@ -35,6 +36,7 @@ export class BankController {
   }
 
   @Get(':id')
+  @SkipLogging()
   findOne(@Param('id') id: string) {
     return this.bankService.findOne(id);
   }

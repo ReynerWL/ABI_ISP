@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Between, DataSource, In } from 'typeorm';
+import { Between, DataSource, ILike, In } from 'typeorm';
 import { User, UserStatus } from '#/user/entities/user.entity';
 import * as dayjs from 'dayjs';
 import { Payment } from '#/payment/entities/payment.entity';
@@ -28,7 +28,7 @@ export class DashboardService {
       whereCondition.createdAt = Between(startOfYear, endOfYear);
     }
     const dataCustomer = await this.dataSource.manager.find(User, {
-      where: { ...whereCondition, role: { name: 'USER' } },
+      where: { ...whereCondition, role: { name: ILike('%user%') } },
       relations: { role: true },
     });
     const newCust = dataCustomer.filter(
@@ -58,7 +58,7 @@ export class DashboardService {
 
     //
     const dataPendingInactive = await this.dataSource.manager.find(User, {
-      where: { status: In(['PENDING', 'INACTIVE']), role: { name: 'USER' } },
+      where: { status: In([ILike(`%${UserStatus.PENDING}%`),ILike(`%${UserStatus.NONAKTIF}%`)]), role: { name: ILike('%user%')} },
       select: { customerId: true, updatedAt: true, status: true },
     });
 
@@ -73,15 +73,39 @@ export class DashboardService {
       .createQueryBuilder('payment')
       .select("TO_CHAR(payment.createdAt, 'Mon')", 'month')
       .addSelect('SUM(payment.price)', 'total')
-      .where('payment.status =:status', { status: 'PAID' })
+      .where('payment.status = :status', { status: 'CONFIRMED' })
+      .andWhere(
+        this_year
+          ? 'EXTRACT(YEAR FROM payment.createdAt) = EXTRACT(YEAR FROM CURRENT_DATE)'
+          : '1=1', // Always true if not filtering by year
+      )
       .groupBy("TO_CHAR(payment.createdAt, 'Mon')")
       .orderBy('MIN(payment.createdAt)', 'ASC')
       .getRawMany();
 
-    const formattedTransactions = dataTransactions.map((trx) => ({
-      month: trx.month,
-      total: Number(trx.total),
-    }));
+    // 2. Format DB results
+    const dbTransactionMap = new Map<string, number>();
+    dataTransactions.forEach((trx) => {
+      // Ensure 'total' is a number
+      dbTransactionMap.set(trx.month, parseFloat(trx.total) || 0);
+    });
+
+    // 3. Generate list of all months (short names like 'Jan', 'Feb')
+    const allMonths: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      // Use dayjs to get consistent short month names
+      allMonths.push(dayjs().month(i).format('MMM'));
+    }
+
+    // 4. Merge DB data with all months, filling missing months with 0
+    const formattedTransactions = allMonths.map((monthName) => {
+      const total = dbTransactionMap.get(monthName) ?? 0;
+      return {
+        month: monthName,
+        total: Number(total.toFixed(2)), // Ensure it's a clean number, rounded to 2 decimals
+      };
+    });
+    
     const datas: DashboardAdmin = {
       totalCustomer: total,
       newCustomer: newCust.length,

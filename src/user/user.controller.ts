@@ -20,6 +20,7 @@ import { RegisterDto } from './dto/register.dto';
 import { Public } from '#/auth/public.decorator';
 import { PaginationDto} from '#/utils/pagination.dto';
 import { RolesGuard } from '#/core/roles.guard';
+import { SkipLogging } from '#/logging/skip-logging.decorator';
 
 @Controller('user')
 export class UserController {
@@ -56,6 +57,7 @@ export class UserController {
   }
 
   @Get()
+  @SkipLogging()
   async findAll(
     @Request() req: ExtendedRequest,
     @Query('search') search: string,
@@ -88,6 +90,7 @@ export class UserController {
   }
 
   @Get('detail')
+  @SkipLogging()
   async findOneByUser(@Request() req: ExtendedRequest) {
     return {
       data: await this.userService.findOneByUser(req.user.id),

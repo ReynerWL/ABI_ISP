@@ -26,6 +26,7 @@ import {
 import { Role } from '#/core/roles.enum';
 import { Roles } from '#/core/roles.decorator';
 import { PaginationDto } from '#/utils/pagination.dto';
+import { SkipLogging } from '#/logging/skip-logging.decorator';
 
 @Controller('paket')
 @ApiTags('Paket')
@@ -70,6 +71,7 @@ export class PaketController {
   @ApiOkResponse({
     description: 'Sukses mengambil data paket!',
   })
+  @SkipLogging()
   async findAll(
     @Query('query') query?: string,
     @Query('order') order: 'ASC' | 'DESC' = 'ASC',

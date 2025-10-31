@@ -11,6 +11,7 @@ import {
 import { SubscriptionService } from './subscription.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
+import { SkipLogging } from '#/logging/skip-logging.decorator';
 
 @Controller('subscription')
 export class SubscriptionController {
@@ -22,6 +23,7 @@ export class SubscriptionController {
   }
 
   @Get()
+  @SkipLogging()
   findAll(
     @Query('query') query?: string,
     @Query('startDate') startDate?: string,
