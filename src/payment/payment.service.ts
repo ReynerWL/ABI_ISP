@@ -2,13 +2,14 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { Payment } from './entities/payment.entity';
-import { DataSource, LessThan, Repository } from 'typeorm';
+import { DataSource, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { User } from '#/user/entities/user.entity';
 import { Bank } from '#/bank/entities/bank.entity';
 import { Paket } from '#/paket/entities/paket.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Subscription } from '#/subscription/entities/subscription.entity';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class PaymentService {
@@ -338,21 +339,102 @@ if (latestSubscription !== null) {
     };
   }
 
-  @Cron('0 * * * *') // Runs every hour
-  async cancelOldPendingPayments() {
-    const twentyFourHoursAgo = new Date();
-    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async handleSubscriptionPayments() {
+    console.log('[SubscriptionService] 🕐 Running daily subscription payment check...');
 
-    const pendingPayments = await this.paymentRepository.find({
-      where: {
-        status: 'PENDING',
-        buktiPembayaran: null,
-        createdAt: LessThan(twentyFourHoursAgo),
-      },
+    try {
+      const today = new Date();
+      const twentyThreeDaysAgo = new Date(today);
+      twentyThreeDaysAgo.setDate(today.getDate() - 23);
+
+      const twentySevenDaysAgo = new Date(today);
+      twentySevenDaysAgo.setDate(today.getDate() - 27);
+
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(today.getDate() - 30);
+
+      // Find subscriptions that started exactly 23, 27, or 30+ days ago
+      const subscriptions = await this.dataSource.manager.find(Subscription, {
+        where: [
+          // 23 days old (7 days left)
+          { start_date: LessThanOrEqual(twentyThreeDaysAgo) },
+          // 27 days old (3 days left)
+          { start_date: LessThanOrEqual(twentySevenDaysAgo) },
+          // 30+ days old (expired)
+          { start_date: LessThanOrEqual(thirtyDaysAgo) },
+        ],
+        relations: { user: true, paket: true, banks: true},
+      });
+
+      console.log(`[SubscriptionService] 📦 Found ${subscriptions.length} subscriptions to process`);
+
+      for (const subscription of subscriptions) {
+        const startDate = new Date(subscription.start_date);
+        const daysSinceStart = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceStart >= 23 && daysSinceStart < 24) {
+          console.log(`[SubscriptionService] 📅 7-day reminder for user ${subscription.user?.customerId}`);
+          await this.createPaymentForSubscription(subscription.id, '7_day_reminder');
+        } else if (daysSinceStart >= 27 && daysSinceStart < 28) {
+          console.log(`[SubscriptionService] ⚠️ 3-day reminder for user ${subscription.user?.customerId}`);
+          await this.createPaymentForSubscription(subscription.id, '3_day_reminder');
+        } else if (daysSinceStart >= 30) {
+          console.log(`[SubscriptionService] 🔴 Expiry for user ${subscription.user?.customerId}`);
+          await this.createPaymentForSubscription(subscription.id, 'expiry');
+        }
+      }
+
+      console.log('[SubscriptionService] ✅ Daily subscription payment check completed');
+    } catch (error) {
+      console.error('[SubscriptionService] ❌ Error in subscription payment check:', error.message);
+    }
+  }
+
+  private async createPaymentForSubscription(
+    subscriptionid: string,
+    type: '7_day_reminder' | '3_day_reminder' | 'expiry'
+  ) {
+    const paymentRepo = this.dataSource.manager.getRepository(Payment);
+
+    const subscription = await this.dataSource.manager.findOne(Subscription, {
+      where: { id: subscriptionid },
+      relations: { user: true, paket: true, banks: true },
     });
+    
+    try {
+      // Check if a pending payment already exists for this subscription
+      const existingPayment = await paymentRepo.findOne({
+        where: {
+          user: { id: subscription.user.id },
+          status: 'PENDING',
+        },
+        order: {
+          createdAt: 'DESC',
+        },
+      });
 
-    for (const payment of pendingPayments) {
-      await this.paymentRepository.update(payment.id, { status: 'REJECTED' });
+      if (existingPayment) {
+        console.log(`[SubscriptionService] ℹ️ Pending payment already exists for subscription ${subscription.id}`);
+        return;
+      }
+
+      // Create new payment
+      const payment = new Payment();
+      payment.user = subscription.user;
+      payment.paket = subscription.paket;
+      payment.bank = subscription.banks;
+      payment.price = subscription.paket?.price || 0;
+      payment.status = 'PENDING';
+      payment.reason = `Auto-generated ${type} payment`;
+      
+      // Save payment
+      const savedPayment = await paymentRepo.save(payment);
+      
+      console.log(`[SubscriptionService] 💰 Created new payment #${savedPayment.id} for subscription ${subscription.id} (${type})`);
+      
+    } catch (error) {
+      console.error(`[SubscriptionService] ❌ Failed to create payment for subscription ${subscription.id}:`, error.message);
     }
   }
 }

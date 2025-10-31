@@ -178,10 +178,13 @@ export class UserService {
       const bank: Bank | null = await bankRepo.findOne({
         where: { id: registerDto.payment.banksId },
       });
-      payment.paket = data.paket;
+      const paket = await paketRepo.findOneOrFail({
+        where: { id: registerDto.payment.paketId },
+      });
+      payment.paket = paket
       payment.bank = bank ?? undefined; 
       payment.user = savedUser; 
-      payment.price = registerDto.payment.price;
+      payment.price = paket.price;
       payment.buktiPembayaran = registerDto.payment.buktiPembayaran;
       payment.status = 'PENDING';
 
@@ -526,6 +529,16 @@ export class UserService {
         payment.paket = newPaket;
         payment.price = newPaket.price; 
         payment.status = 'PENDING';
+
+        //search already exist pending payment fot this user
+        const existingPendingPayment = await paymentRepo.findOne({
+          where: { user: { id: user.id }, status: 'PENDING' },
+        });
+
+        if (existingPendingPayment) {
+          await paymentRepo.remove(existingPendingPayment);
+        }
+        
         createdPayment = await paymentRepo.save(payment);
       }
 
