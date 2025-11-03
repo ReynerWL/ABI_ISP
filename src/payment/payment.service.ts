@@ -85,6 +85,18 @@ async create(createPaymentDto: CreatePaymentDto) {
       status: 'REJECTED',
       reason: reason,
     });
+
+    //Create a new payment with the same details but status PENDING
+    const newPayment = this.dataSource.manager.create(Payment, {
+      user: payment.user,
+      paket: payment.paket,
+      bank: payment.bank,
+      price: payment.price,
+      status: 'PENDING',
+    });
+
+    await this.dataSource.manager.save(newPayment);
+
     return await this.dataSource.manager.findOne(Payment, {
       where: { id: payment.id },
       relations: { user: true },
@@ -174,7 +186,6 @@ if (latestSubscription !== null) {
       .leftJoinAndSelect('payment.bank', 'bank')
       .leftJoinAndSelect('payment.paket', 'paket')
 
-    // 🔹 Text Search (general query)
     if (query) {
       qb.andWhere(
         '(user.name LIKE :query OR ' +
@@ -257,6 +268,7 @@ if (latestSubscription !== null) {
       .leftJoinAndSelect('payment.bank', 'bank')
       .leftJoinAndSelect('payment.user', 'user')
       .leftJoinAndSelect('user.subscription', 'subscription')
+      .leftJoinAndSelect('user.paket', 'userPaket')
 
     qb.skip((page - 1) * limit).take(limit);
 
