@@ -529,6 +529,7 @@ export class UserService {
         payment.paket = newPaket;
         payment.price = newPaket.price; 
         payment.status = 'PENDING';
+        payment.buktiPembayaran = updateUserDto.buktiPembayaran || '';
 
         //search already exist pending payment fot this user
         const existingPendingPayment = await paymentRepo.findOne({

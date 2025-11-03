@@ -32,4 +32,7 @@ export class UpdateUserDto {
 
   @IsOptional()
   ip_address: string;
+
+  @IsOptional()
+  buktiPembayaran: string;
 }
