@@ -62,7 +62,7 @@ export class User {
 
   @Column({
     nullable: true,
-    default: UserStatus.PENDING,
+    default: UserStatus.BARU,
   })
   status: UserStatus;
 

@@ -157,6 +157,7 @@ export class UserService {
       data.birth_date = registerDto.birth_date;
       data.provinsi = registerDto.provinsi;
       data.kota = registerDto.kota;
+      data.status = UserStatus.BARU;
       data.kecamatan = registerDto.kecamatan;
       data.kelurahan = registerDto.kelurahan;
       data.role = role;
