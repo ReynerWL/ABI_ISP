@@ -432,16 +432,6 @@ export class UserService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto, roles: string) {
-    if (roles?.toLowerCase() !== 'superadmin' || roles?.toLowerCase() !== 'admin') {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.FORBIDDEN,
-          error: 'You do not have permission to update a user',
-        },
-        HttpStatus.FORBIDDEN,
-      );
-    }
-
     return await this.dataSource.transaction(async (manager) => {
       const userRepo = manager.getRepository(User);
       const paketRepo = manager.getRepository(Paket);
