@@ -337,6 +337,11 @@ if (latestSubscription !== null) {
         HttpStatus.NOT_FOUND,
       );
     }
+
+    const updatedPayment = new Payment();
+    updatedPayment.buktiPembayaran = updatePaymentDto.buktiPembayaran ?? payment.buktiPembayaran;
+    updatedPayment.paidAt = new Date();
+    Object.assign(updatePaymentDto, updatedPayment);
     await this.paymentRepository.update(id, updatePaymentDto);
 
     return {

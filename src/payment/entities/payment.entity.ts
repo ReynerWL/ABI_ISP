@@ -38,6 +38,12 @@ export class Payment {
   @Column({ type: 'timestamp with time zone', nullable: true })
   confirmedAt: Date;
 
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  rejectedAt: Date;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  paidAt: Date;
+
   @CreateDateColumn({
     type: 'timestamp with time zone',
     nullable: false,

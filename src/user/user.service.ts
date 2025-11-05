@@ -432,7 +432,7 @@ export class UserService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto, roles: string) {
-    if (roles !== 'SUPERADMIN') {
+    if (roles?.toLowerCase() !== 'superadmin' || roles?.toLowerCase() !== 'admin') {
       throw new HttpException(
         {
           statusCode: HttpStatus.FORBIDDEN,
@@ -498,6 +498,8 @@ export class UserService {
       updateData.status = updateUserDto.status;
       updateData.ip_address = updateUserDto.ip_address;
       updateData.paket = user.paket;
+      updateData.buktiPemasangan = updateUserDto.buktiPemasangan;
+      updateData.tanggalPemasangan = updateUserDto.tanggalPemasangan;
       
       // Handle password update if provided
       if (updateUserDto.password) {

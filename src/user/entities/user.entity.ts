@@ -114,6 +114,12 @@ export class User {
   @Column({ nullable: true, type: 'timestamp with time zone' })
   last_login: Date;
 
+  @Column({ nullable: true,  type:"text" })
+  buktiPemasangan: string;
+
+  @Column({ nullable: true, type: 'timestamp with time zone' })
+  tanggalPemasangan: Date;
+
   @CreateDateColumn({
     type: 'timestamp with time zone',
     nullable: false,

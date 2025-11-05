@@ -35,4 +35,11 @@ export class UpdateUserDto {
 
   @IsOptional()
   buktiPembayaran: string;
+  
+  @IsOptional()
+  buktiPemasangan: string;
+  
+  @IsOptional()
+  tanggalPemasangan: Date;
+
 }
