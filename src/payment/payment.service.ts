@@ -77,8 +77,15 @@ async create(createPaymentDto: CreatePaymentDto) {
       where: { id: paymentId },
     });
 
-    if (!payment) {
-      throw new Error('Payment not found');
+    //throw error 404
+    if (!payment){
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'Payment not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
     }
 
     await this.dataSource.manager.update(Payment, paymentId, {
@@ -109,9 +116,15 @@ async confirmPayment(paymentId: string) {
     relations: ['user', 'paket', 'bank'],
   });
 
-  if (!payment) {
-    throw new Error('Payment not found');
-  }
+    if (!payment){
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'Payment not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
 
   // Get user's latest active subscription
   const latestSubscription = await this.dataSource.manager.findOne(Subscription, {
