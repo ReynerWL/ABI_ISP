@@ -3,7 +3,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { Payment } from './entities/payment.entity';
 import { DataSource, LessThan, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
-import { User } from '#/user/entities/user.entity';
+import { User, UserStatus } from '#/user/entities/user.entity';
 import { Bank } from '#/bank/entities/bank.entity';
 import { Paket } from '#/paket/entities/paket.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -113,7 +113,7 @@ async create(createPaymentDto: CreatePaymentDto) {
 async confirmPayment(paymentId: string) {
   const payment = await this.dataSource.manager.findOne(Payment, {
     where: { id: paymentId },
-    relations: ['user', 'paket', 'bank'],
+    relations: { user: true, paket: true, bank: true },
   });
 
     if (!payment){
@@ -167,6 +167,7 @@ if (latestSubscription !== null) {
   await this.dataSource.manager.update(User, payment.user.id, {
     subscription: payment.user.subscription,
     paket: payment.paket,
+    status: UserStatus.AKTIF,
   });
 
   await this.paymentRepository.update(paymentId, {
