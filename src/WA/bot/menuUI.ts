@@ -7,61 +7,50 @@ import { Logger } from '@nestjs/common';
 export class MenuUIService {
   private logger = new Logger('MenuUIService');
 
-  // Main menu: numbered options
-  async sendMainMenu(client: any, to: string) {
-    await client.sendMessage(to, {
-      text: `👋 Welcome to ISP Customer Service\n\nWhat would you like to do? Reply with:\n\n1️⃣ Account Status\n2️⃣ Pay / Upload Payment Proof\n3️⃣ Contact Support`,
-    });
-  }
-
-  // Payment menu
-  async sendPaymentMenu(client: any, to: string) {
-    await client.sendMessage(to, {
-      text: `💳 Make a Payment\n\nPlease reply with:\n\n📄 Enter your Customer ID (e.g., CID12345)\n📸 Or send your payment screenshot directly`,
-    });
-  }
-
-  // After CID verification
-  async sendCustomerVerification(
+  /**
+   * Send subscription renewal reminder
+   */
+  async sendSubscriptionReminder(
     client: any,
     to: string,
-    name: string,
-    packageType: string,
+    daysLeft: number,
+    uploadLink: string, // ✅ Add the upload link
   ) {
     await client.sendMessage(to, {
-      text: `✅ Verified: ${name}\n📦 Package: ${packageType}\n\n📌 Please send your payment proof (screenshot of transaction) now.`,
+      text: `📅 Subscription Reminder\n\nYour subscription expires in ${daysLeft} day(s).\n\nTo avoid disconnection:\n1. Prepare your payment\n2. Upload proof using this link: ${uploadLink}\n\nYour service will remain active after successful verification.`,
     });
   }
 
-  // Success message
-  async sendPaymentSuccess(client: any, to: string) {
+  /**
+   * Send service expired notice
+   */
+  async sendServiceExpired(client: any, to: string, uploadLink: string) {
     await client.sendMessage(to, {
-      text: `🎉 Payment Confirmed!\n\nThank you for your payment. Your service will continue without interruption.\n\nYour subscription is valid until the end of the month.`,
+      text: `⚠️ Service Suspended\n\nYour subscription has expired. Please renew immediately.\n\nUpload payment proof: ${uploadLink}\n\nYour service will be restored within 24 hours after verification.`,
     });
   }
 
-  // Rejected
-  async sendPaymentRejected(client: any, to: string, reason: string) {
+  /**
+   * Send payment confirmation success
+   */
+  async sendPaymentSuccess(client: any, to: string, transactionId: string) {
     await client.sendMessage(to, {
-      text: `❌ Payment Rejected\n\nReason: ${reason}\n\nPlease send a valid payment proof (e.g., bank transfer screenshot).`,
+      text: `🎉 Payment Confirmed!\n\nTransaction ID: ${transactionId}\n\nYour service has been restored. Thank you for your payment!\n\nNeed help? Contact us anytime.`,
     });
   }
 
-  // Reminder
-  async sendSubscriptionReminder(client: any, to: string, daysLeft: number) {
+  /**
+   * Send payment rejection notice
+   */
+  async sendPaymentRejected(client: any, to: string, reason: string, uploadLink: string) {
     await client.sendMessage(to, {
-      text: `📅 Subscription Reminder\n\nYour subscription expires in ${daysLeft} day(s).\n\nPlease make your payment before the 1st of next month to avoid disconnection.\n\nReply with PAY to start payment process.`,
+      text: `❌ Payment Rejected\n\nReason: ${reason}\n\nPlease resubmit a valid payment proof using this link: ${uploadLink}\n\nContact support if you need assistance.`,
     });
   }
 
-  // Expired
-  async sendServiceExpired(client: any, to: string) {
-    await client.sendMessage(to, {
-      text: `⚠️ Service Suspended\n\nYour subscription has expired. Please make your payment immediately to restore service.\n\nReply with PAY to start payment process.`,
-    });
-  }
-
-  // Account status
+  /**
+   * Send account status summary (when triggered by admin/system)
+   */
   async sendAccountStatus(
     client: any,
     to: string,
@@ -80,21 +69,39 @@ export class MenuUIService {
     const due = dueDate ? dueDate.toLocaleDateString() : 'End of month';
 
     await client.sendMessage(to, {
-      text: `📊 Account Status\n\nName: ${name}\nPackage: ${paket}\nStatus: ${statusMsg}\nRenewal Date: ${due}\n\nNeed help? Reply with SUPPORT.`,
+      text: `📊 Account Status Update\n\nName: ${name}\nPackage: ${paket}\nStatus: ${statusMsg}\nRenewal Date: ${due}\n\nQuestions? Contact support.`,
     });
   }
 
-  // Support contact
+  /**
+   * Send support contact info (when triggered by system)
+   */
   async sendSupportContact(client: any, to: string) {
     await client.sendMessage(to, {
-      text: `📞 Customer Support\n\nFor assistance, contact us via:\n\n📱 WhatsApp: wa.me/6281234567890\n📧 Email: support@abiisp.com\n🕘 Hours: Mon-Fri, 8 AM - 5 PM\n\nWe'll respond as soon as possible.`,
+      text: `📞 Need Help?\n\nContact our support team:\n\n📱 WhatsApp: wa.me/6281234567890\n📧 Email: support@yourisp.com\n🕐 Hours: Mon-Fri, 8 AM - 5 PM`,
     });
   }
 
-  // Prompt for Customer ID
-  async askForCustomerId(client: any, to: string) {
+  /**
+   * Send welcome message (when user first registers, triggered by system)
+   */
+  async sendWelcomeMessage(client: any, to: string, name: string, uploadLink: string) {
     await client.sendMessage(to, {
-      text: `🆔 Please enter your Customer ID (e.g., CID12345) so we can verify your account.`,
+      text: `👋 Welcome, ${name}!\n\nThank you for choosing YourISP.\n\nTo activate your service:\n1. Make your payment\n2. Upload proof here: ${uploadLink}\n\nEnjoy fast internet!`,
+    });
+  }
+
+  /**
+   * Send payment reminder for overdue invoices
+   */
+  async sendOverduePaymentReminder(
+    client: any,
+    to: string,
+    daysOverdue: number,
+    uploadLink: string,
+  ) {
+    await client.sendMessage(to, {
+      text: `⚠️ Overdue Payment Alert\n\nYour payment is ${daysOverdue} day(s) overdue.\n\nTo prevent service interruption:\n1. Pay immediately\n2. Upload proof: ${uploadLink}\n\nAct now to avoid disconnection.`,
     });
   }
 }
