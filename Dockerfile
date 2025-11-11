@@ -1,46 +1,65 @@
-# PRODUCTION DOCKERFILE
-# ---------------------
-# This Dockerfile allows to build a Docker image of the NestJS application
-# and based on a NodeJS 16 image. The multi-stage mechanism allows to build
-# the application in a "builder" stage and then create a lightweight production
-# image containing the required dependencies and the JS build files.
-#
-# Dockerfile best practices
-# https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
-# Dockerized NodeJS best practices
-# https://github.com/nodejs/docker-node/blob/master/docs/BestPractices.md
-# https://www.bretfisher.com/node-docker-good-defaults/
-# http://goldbergyoni.com/checklist-best-practice-of-node-js-in-production/
+# ================================
+# Stage 1: Builder
+# ================================
+FROM node:20-alpine3.20 AS builder
 
-FROM node:20-alpine as builder
+ENV NODE_ENV=build
+WORKDIR /home/node
 
-ENV NODE_ENV build
+# Install system tools
+RUN apk add --no-cache git python3 make g++
+
+COPY package.json yarn.lock ./
+
+# Set environment
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Install all dependencies
+RUN yarn install --frozen-lockfile --ignore-scripts
+
+# Copy source code
+COPY . .
+
+# Build app
+RUN yarn run build
+
+# Reinstall only production deps
+RUN yarn install --production --frozen-lockfile --prefer-offline && \
+    yarn cache clean
+
+# ================================
+# Stage 2: Runtime
+# ================================
+FROM node:20-alpine3.20 AS runtime
+
+# Install Chromium + fonts
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Set environment
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    XDG_CONFIG_HOME=/tmp/.chromium \
+    XDG_CACHE_HOME=/tmp/.chromium \
+    NODE_ENV=production
+
+# Create non-root user safely
+RUN if ! getent group node > /dev/null; then addgroup -S node; fi && \
+    if ! getent passwd node > /dev/null; then adduser -S node -G node; fi
 
 USER node
 WORKDIR /home/node
 
-COPY package.json .
-COPY yarn.lock .
-
-RUN yarn install --frozen-lockfile
-
-COPY . /home/node
-
-RUN yarn run build \
-    && yarn install --production --ignore-scripts --prefer-offline
-
-RUN npx prisma generate
-# ---
-
-FROM node:20-alpine
-
-ENV NODE_ENV production
-
-USER node
-WORKDIR /home/node
-
-COPY --from=builder /home/node/package*.json /home/node/
-COPY --from=builder /home/node/node_modules/ /home/node/node_modules/
-COPY --from=builder /home/node/dist/ /home/node/dist/
+# Copy built files
+COPY --from=builder /home/node/dist ./dist
+COPY --from=builder /home/node/package*.json ./
+COPY --from=builder /home/node/yarn.lock ./yarn.lock
+COPY --from=builder /home/node/node_modules ./node_modules
 
 CMD ["node", "dist/main.js"]

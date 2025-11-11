@@ -1,0 +1,603 @@
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
+import { CreateAdminDto, CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User, UserStatus } from './entities/user.entity';
+import { DataSource, ILike, Repository } from 'typeorm';
+import { Role } from '#/role/entities/role.entity';
+import { randomInt, randomUUID } from 'crypto';
+import { hashPassword } from '#/auth/hashpassword';
+import { RegisterDto } from './dto/register.dto';
+import { Payment } from '#/payment/entities/payment.entity';
+import { Paket } from '#/paket/entities/paket.entity';
+import { Bank } from '#/bank/entities/bank.entity';
+import { PaginationDto } from '#/utils/pagination.dto';
+import { logger } from 'handlebars';
+
+@Injectable()
+export class UserService {
+  constructor(
+    private dataSource: DataSource, 
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
+
+  async create(createUserDto: CreateUserDto) {
+      return await this.dataSource.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const roleRepo = manager.getRepository(Role);
+
+      if (createUserDto.email) {
+        const existingUser = await userRepo.findOne({
+          where: { email: createUserDto.email },
+        });
+        if (existingUser) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.BAD_REQUEST,
+              error: 'email already used',
+            },
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      if (createUserDto.phone_number) {
+        const existingUser = await userRepo.findOne({
+          where: { phone_number: createUserDto.phone_number },
+        });
+        if (existingUser) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.BAD_REQUEST,
+              error: 'phone number already used',
+            },
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      
+      if (createUserDto.role == 'ADMIN' || createUserDto.role == 'SUPERADMIN') {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.FORBIDDEN,
+            error: 'Cannot assign ADMIN or SUPERADMIN role',
+          },
+          HttpStatus.FORBIDDEN,
+        );
+      }
+      
+      const role = await roleRepo.findOneOrFail({
+        where: { name: createUserDto.role },
+      });
+
+      const data = new User();
+      data.name = createUserDto.name;
+      data.email = createUserDto.email;
+      data.phone_number = createUserDto.phone_number;
+      data.photo_ktp = createUserDto.photo_ktp;
+      data.role = role;
+      data.salt = randomUUID();
+      data.password = await hashPassword(createUserDto.password, data.salt);
+      data.alamat = createUserDto.alamat;
+      data.status = createUserDto.status;
+      data.priority = createUserDto.priority;
+      data.ip_address = createUserDto.ip_address;
+      data.paket = await manager.getRepository(Paket).findOneOrFail({
+        where: { id: createUserDto.paketsId },
+      });
+
+      const userCount = (await userRepo.count()) + 1;
+      const date = new Date();
+      const year = date.getFullYear().toString().slice(-2);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const sequential = userCount.toString().padStart(4, '0');
+      data.customerId = `${sequential}${year}${month}${day}`;
+
+      const savedUser = await userRepo.save(data); 
+
+      const userWithRelations = await userRepo.findOne({
+         where: { id: savedUser.id },
+         relations: ['role'] 
+      });
+
+      return {
+        data: userWithRelations || savedUser, // Return saved user
+      };
+    });
+  }
+
+  async register(registerDto: RegisterDto) {
+    return await this.dataSource.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const paketRepo = manager.getRepository(Paket);
+      const roleRepo = manager.getRepository(Role);
+      const bankRepo = manager.getRepository(Bank);
+      const paymentRepo = manager.getRepository(Payment);
+
+      if (registerDto.email) {
+        const exists = await userRepo.findOne({
+          where: { email: registerDto.email },
+        });
+        if (exists) {
+          throw new BadRequestException(
+            'Email ini sudah terdaftar, silahkan gunakan email lain',
+          );
+        }
+      }
+
+      if (registerDto.phone_number) {
+        const existsPhone = await userRepo.findOne({
+          where: { phone_number: registerDto.phone_number },
+        });
+        if (existsPhone) {
+          throw new BadRequestException('Nomor telepon ini sudah terdaftar');
+        }
+      }
+
+      const role = await roleRepo.findOneOrFail({
+        where: { name: ILike(`%user%`) }, 
+      });
+
+      const data = new User();
+      data.email = registerDto.email;
+      data.name = registerDto.name;
+      data.phone_number = registerDto.phone_number;
+      data.alamat = registerDto.alamat;
+      data.photo_ktp = registerDto.photo_ktp;
+      data.salt = randomUUID();
+      data.password = await hashPassword(registerDto.password, data.salt);
+      data.birth_date = registerDto.birth_date;
+      data.provinsi = registerDto.provinsi;
+      data.kota = registerDto.kota;
+      data.status = UserStatus.BARU;
+      data.kecamatan = registerDto.kecamatan;
+      data.kelurahan = registerDto.kelurahan;
+      data.role = role;
+      data.paket = await paketRepo.findOneOrFail({
+        where: { id: registerDto.payment.paketId },
+      }); 
+
+      const userCount = (await userRepo.count()) + 1;
+      const date = new Date();
+      const year = date.getFullYear().toString().slice(-2);
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const sequential = userCount.toString().padStart(4, '0');
+      data.customerId = `${sequential}${year}${month}${day}`;
+
+      const savedUser = await userRepo.save(data);
+
+      const payment = new Payment();
+      const bank: Bank | null = await bankRepo.findOne({
+        where: { id: registerDto.payment.banksId },
+      });
+      const paket = await paketRepo.findOneOrFail({
+        where: { id: registerDto.payment.paketId },
+      });
+      payment.paket = paket
+      payment.bank = bank ?? undefined; 
+      payment.user = savedUser; 
+      payment.price = paket.price;
+      payment.buktiPembayaran = registerDto.payment.buktiPembayaran;
+      payment.status = 'PENDING';
+
+      const savedPayment = await paymentRepo.save(payment); 
+
+      const userWithRelations = await userRepo.findOne({
+        where: { id: savedUser.id },
+        relations: ['role', 'paket'], // Fetch necessary relations
+      });
+
+      const paymentWithRelations = await paymentRepo.findOne({
+        where: { id: savedPayment.id },
+        relations: ['paket', 'bank', 'user'], // Fetch necessary relations
+      });
+
+      return {
+        data: userWithRelations,
+        payment: paymentWithRelations,
+        Status: HttpStatus.CREATED,
+      };
+    });
+  }
+
+  async createAdmin(createAdminDto: CreateAdminDto, roles: string) {
+    console.log(roles);
+    
+    if (roles != 'SUPERADMIN') {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          error: 'You do not have permission to create an admin',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    const roleRepo = this.dataSource.getRepository(Role);
+
+    const role = await roleRepo.findOneOrFail({
+      where: { name: ILike(`%admin%`) },
+    });
+
+    const data = new User();
+    data.name = createAdminDto.name;
+    data.email = createAdminDto.email;
+    data.phone_number = createAdminDto.phone_number;
+    data.role = role;
+    data.salt = randomUUID();
+    data.password = await hashPassword(createAdminDto.password, data.salt);
+    data.status = createAdminDto.status;
+
+    const savedUser = await this.userRepository.save(data);
+
+    const userWithRelations = await this.userRepository.findOne({
+       where: { id: savedUser.id },
+       relations: ['role'] 
+    });
+
+    return userWithRelations || savedUser; // Return saved user
+  }
+
+  async findAll(
+    search: string,
+    status: string,
+    paket_speed: string,
+    paket: string,
+    role: string,
+    created_at: string,
+    startDate: string,
+    endDate: string,
+    paginationDto: PaginationDto,
+  ) {
+    const { page, limit } = paginationDto;
+    try {
+      const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.paket', 'paket');
+
+    if (status) {
+      qb.andWhere('user.status = :status', { status });
+    }
+
+    if (search) {
+      qb.andWhere(
+        '(user.name ILIKE :search OR user.email ILIKE :search OR user.customerId ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (paket_speed) {
+      const pakets = paket_speed.split(',').map(p => p.trim());
+      qb.andWhere('paket.speed IN (:...pakets)', { pakets });
+    }
+
+    if (paket) {
+      if (paket.toLowerCase() === 'asc') {
+        qb.addOrderBy('paket.speed', 'ASC');
+      } else if (paket.toLowerCase() === 'desc') {
+        qb.addOrderBy('paket.speed', 'DESC');
+      }
+    }
+
+    if (role) {
+      qb.andWhere('role.name = :role', { role });
+    }
+
+    if (created_at) {
+      if (created_at.toLowerCase() == 'asc') {
+        qb.addOrderBy('user.createdAt', 'ASC');
+      } else if (created_at.toLowerCase() == 'desc') {
+        qb.addOrderBy('user.createdAt', 'DESC');
+      }
+    }
+
+    if (startDate && endDate) {
+      qb.andWhere('user.createdAt BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      });
+    }
+
+    if (paginationDto) {
+      qb.skip((page - 1) * limit).take(limit);
+    }
+
+    const [data, total] = await qb.getManyAndCount();
+
+    const pagination = {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    return {
+      data,
+      pagination,
+    };
+    } catch (error) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.BAD_REQUEST,
+          error: 'An error occurred while fetching users',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  async findOne(id: string) {
+     const user = await this.userRepository.findOne({
+      where: { id },
+      relations: {role: true, paket: true, subscription: {paket: true}, payments: {paket: true, bank: true}},
+    });
+
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'user not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    return user;
+  }
+
+  async findOneByUser(userId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: {
+        role: true,
+        paket: true,
+        payments: true,
+        subscription: true,
+      },
+    });
+
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'user not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const paymentCount = await this.userRepository.manager
+      .getRepository(Payment)
+      .count({
+        where: { user: { id: userId } },
+      });
+
+    const { payments, ...rest } = user;
+
+    return {
+      ...rest,
+      payments: {
+        data: payments || [],
+        count: paymentCount,
+      },
+    };
+  }
+
+  async findByCustomerId(customerId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: customerId, role: { name: 'CUSTOMER' } }, 
+      relations: ['role', 'payment', 'paket', 'subscription'], 
+    });
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'user not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    return user;
+  }
+
+  async findExpiredUsers() {
+    return this.userRepository.find({
+      where: {
+        status: UserStatus.NONAKTIF,
+      },
+      relations: ['role', 'paket', 'subscription', 'payment'],
+    });
+  }
+
+  async findActiveUsers() {
+    return this.userRepository.find({
+      where: {
+        status: UserStatus.AKTIF,
+      },
+      relations: ['role', 'paket', 'subscription', 'payment'],
+    });
+  }
+
+  async markAsExpired(userId: string) {
+    return this.userRepository.update(userId, { status: UserStatus.NONAKTIF });
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto, roles: string) {
+    return await this.dataSource.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+      const paketRepo = manager.getRepository(Paket);
+      const paymentRepo = manager.getRepository(Payment);
+
+      const user = await this.findOne(id)
+
+      if (!user) {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.NOT_FOUND,
+            error: 'User not found',
+          },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      if (updateUserDto.email && updateUserDto.email !== user.email) {
+        const existingUser = await userRepo.findOne({
+          where: { email: updateUserDto.email },
+        });
+        if (existingUser) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.BAD_REQUEST,
+              error: 'Email already used',
+            },
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      if (updateUserDto.phone_number && updateUserDto.phone_number !== user.phone_number) {
+        const existingUser = await userRepo.findOne({
+          where: { phone_number: updateUserDto.phone_number },
+        });
+        if (existingUser) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.BAD_REQUEST,
+              error: 'Phone number already used',
+            },
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      const updateData = new User();
+      updateData.name = updateUserDto.name;
+      updateData.email = updateUserDto.email;
+      updateData.phone_number = updateUserDto.phone_number;
+      updateData.photo_ktp = updateUserDto.photo_ktp;
+      updateData.alamat = updateUserDto.alamat;
+      updateData.status = updateUserDto.status;
+      updateData.ip_address = updateUserDto.ip_address;
+      updateData.paket = user.paket;
+      updateData.buktiPemasangan = updateUserDto.buktiPemasangan;
+      updateData.tanggalPemasangan = updateUserDto.tanggalPemasangan;
+      
+      // Handle password update if provided
+      if (updateUserDto.password) {
+         user.salt = randomUUID();
+         user.password = await hashPassword(updateUserDto.password, user.salt);
+         updateData.salt = user.salt;
+         updateData.password = user.password;
+      }
+
+      await this.userRepository.update(user.id, updateData)
+
+      let createdPayment: Payment | null = null;
+      // Handle paket change and create pending payment if paketId is provided  
+      if (updateUserDto.paketsId && updateUserDto.paketsId !== user.paket?.id) {
+        const newPaket = await paketRepo.findOne({
+          where: { id: updateUserDto.paketsId },
+        });
+        if (!newPaket) {
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.NOT_FOUND,
+              error: 'Paket not found',
+            },
+            HttpStatus.NOT_FOUND,
+          );
+        }
+
+        const payment = new Payment();
+        payment.user = user;
+        payment.paket = newPaket;
+        payment.price = newPaket.price; 
+        payment.status = 'PENDING';
+        payment.buktiPembayaran = updateUserDto.buktiPembayaran || '';
+
+        //search already exist pending payment fot this user
+        const existingPendingPayment = await paymentRepo.findOne({
+          where: { user: { id: user.id }, status: 'PENDING' },
+        });
+
+        if (existingPendingPayment) {
+          await paymentRepo.remove(existingPendingPayment);
+        }
+        
+        createdPayment = await paymentRepo.save(payment);
+      }
+
+      const userWithRelations = await userRepo.findOne({
+        where: { id: user.id },
+        relations: {role: true, paket: true}, 
+      });
+
+      return {
+        data: userWithRelations,
+        ...(createdPayment && { newPayment: createdPayment }), 
+        message: createdPayment
+          ? `User updated successfully. A new pending payment (#${createdPayment.id}) has been created for the requested package change.`
+          : 'User updated successfully.',
+      };
+    });
+  }
+
+  async updateStatus(id: string, roles: string) {
+    if (roles !== 'SUPERADMIN') {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          error: 'You do not have permission to update user status',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'user not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    user.status = user.status === UserStatus.AKTIF ? UserStatus.NONAKTIF : UserStatus.AKTIF;
+
+    const savedUser = await this.userRepository.save(user);
+
+    return savedUser;
+  }
+
+  async remove(id: string) {
+    const user = await this.userRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'user not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    await this.userRepository.softDelete(id);
+
+    return {
+      message: 'User deleted successfully',
+    };
+  }
+}
