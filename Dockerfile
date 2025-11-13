@@ -1,21 +1,23 @@
 # ================================
-# Stage 1: Builder
+# Stage 1: Builder (with resource optimizations)
 # ================================
-FROM node:20-alpine3.20 AS builder
+FROM node:20-alpine AS builder
 
 ENV NODE_ENV=build
+
 WORKDIR /home/node
 
-# Install system tools
-RUN apk add --no-cache git python3 make g++
+# Install minimal build tools (only what's needed for node-gyp if any native deps exist)
+RUN apk add --no-cache python3 make g++ git
 
+# Copy package files first (to leverage Docker cache)
 COPY package.json yarn.lock ./
 
-# Set environment
+# Set environment for Puppeteer (to avoid downloading Chromium in this stage)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install all dependencies
+# Install ALL dependencies (including dev)
 RUN yarn install --frozen-lockfile --ignore-scripts
 
 # Copy source code
@@ -24,42 +26,44 @@ COPY . .
 # Build app
 RUN yarn run build
 
-# Reinstall only production deps
-RUN yarn install --production --frozen-lockfile --prefer-offline && \
-    yarn cache clean
+# Cleanup build-time dependencies (to reduce layer size)
+RUN yarn install --production --frozen-lockfile --ignore-scripts && \
+    yarn cache clean --force
 
 # ================================
-# Stage 2: Runtime
+# Stage 2: Final Runtime Image
 # ================================
-FROM node:20-alpine3.20 AS runtime
+FROM node:20-alpine AS runtime
 
-# Install Chromium + fonts
+# Install system dependencies in a single layer (reduces size)
 RUN apk add --no-cache \
     chromium \
     nss \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont \
+    dumb-init && \
+    # Create non-root user
+    addgroup -S -g 1001 node && \
+    adduser -S -u 1001 node
 
-# Set environment
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+# Set Puppeteer environment variables
+ENV NODE_ENV=production \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    XDG_CONFIG_HOME=/tmp/.chromium \
-    XDG_CACHE_HOME=/tmp/.chromium \
-    NODE_ENV=production
-
-# Create non-root user safely
-RUN if ! getent group node > /dev/null; then addgroup -S node; fi && \
-    if ! getent passwd node > /dev/null; then adduser -S node -G node; fi
+    XDG_CONFIG_HOME=/tmp/.config \
+    XDG_CACHE_HOME=/tmp/.cache
 
 USER node
 WORKDIR /home/node
 
-# Copy built files
-COPY --from=builder /home/node/dist ./dist
-COPY --from=builder /home/node/package*.json ./
-COPY --from=builder /home/node/yarn.lock ./yarn.lock
-COPY --from=builder /home/node/node_modules ./node_modules
+# Copy built artifacts from builder
+COPY --from=builder --chown=node:node /home/node/dist ./dist
+COPY --from=builder --chown=node:node /home/node/package*.json ./
+COPY --from=builder --chown=node:node /home/node/yarn.lock ./
+COPY --from=builder --chown=node:node /home/node/node_modules ./node_modules
 
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/main.js"]
