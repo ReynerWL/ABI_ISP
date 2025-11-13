@@ -8,7 +8,6 @@ import { SessionService } from './bot/session.service';
 import { MenuHandlerService } from './bot/menuHandler';
 import { MenuUIService } from './bot/menuUI';
 import { ReminderService } from './bot/reminder';
-import { PaymentFlowService } from './bot/paymentFlow';
 
 // Entities
 import { User } from '../user/entities/user.entity';
@@ -36,9 +35,7 @@ import { WhatsAppController } from './wa.controller';
     MenuHandlerService,
     MenuUIService,
     ReminderService,
-    PaymentFlowService,
     UserService,
-    PaymentFlowService,
     PaymentService,
   ],
   exports: [WhatsAppService],
