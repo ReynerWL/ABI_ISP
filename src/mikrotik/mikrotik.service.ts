@@ -8,6 +8,26 @@ import { MikroTikConnection } from './entities/mikrotik-connection.entity';
 import { User, UserStatus } from '#/user/entities/user.entity'; // Adjust path
 import { Cron, CronExpression } from '@nestjs/schedule';
 
+export interface MikrotikQueue {
+  id: string;
+  name: string;
+  target: string; // IP or IP range
+  maxLimit: string; // e.g., "1M/1M"
+  burstLimit: string;
+  burstThreshold: string;
+  burstTime: string;
+  priority: number;
+  queueType: string;
+  parent: string;
+  packetMarks: string;
+  excludedAddresses: string;
+  interface: string;
+  disabled: boolean;
+  dynamic: boolean;
+  limitAt: string;
+  rate: { up: string; down: string }; // Parsed from maxLimit
+}
+
 @Injectable()
 export class MikrotikService {
   private readonly logger = new Logger(MikrotikService.name);
@@ -17,7 +37,7 @@ export class MikrotikService {
     private readonly mikrotikUserRepository: Repository<MikroTikUser>,
     @InjectRepository(MikroTikConnection)
     private readonly mikrotikConnectionRepository: Repository<MikroTikConnection>,
-    @InjectRepository(User) // If you need to fetch user details
+    @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
 
@@ -31,7 +51,6 @@ export class MikrotikService {
     return connection;
   }
 
- 
   private async createApiClient(): Promise<AxiosInstance> {
     const connection = await this.getActiveConnection();
     const protocol = connection.port === 443 ? 'https' : 'http';
@@ -45,112 +64,231 @@ export class MikrotikService {
     const api = axios.create({
       baseURL,
       auth,
-      timeout: 10000, // 10 seconds
+      timeout: 10000,
     });
 
+    // Add interceptors for debugging (optional)
     api.interceptors.request.use(request => {
       this.logger.debug('MikroTik API Request:', request.method?.toUpperCase(), request.url);
       return request;
     });
-    api.interceptors.response.use(response => {
-      this.logger.debug('MikroTik API Response:', response.status, response.config.url);
-      return response;
-    }, error => {
-      this.logger.error('MikroTik API Error:', error.message);
-      return Promise.reject(error);
-    });
+
+    api.interceptors.response.use(
+      response => {
+        this.logger.debug('MikroTik API Response:', response.status, response.config.url);
+        return response;
+      },
+      error => {
+        this.logger.error('MikroTik API Error:', error.message);
+        return Promise.reject(error);
+      }
+    );
 
     return api;
   }
 
-// src/mikrotik/mikrotik.service.ts
-
-async testConnection(connectionId?: string): Promise<{ success: boolean; message: string }> {
-  let connection: MikroTikConnection | null;
-  try {
-    if (connectionId) {
-      connection = await this.mikrotikConnectionRepository.findOneBy({ id: connectionId });
-      if (!connection) {
-        throw new NotFoundException(`Connection with ID ${connectionId} not found.`);
+  /**
+   * ✅ Test MikroTik connection
+   */
+  async testConnection(connectionId?: string): Promise<{ success: boolean; message: string }> {
+    let connection: MikroTikConnection | null;
+    try {
+      if (connectionId) {
+        connection = await this.mikrotikConnectionRepository.findOneBy({ id: connectionId });
+        if (!connection) {
+          throw new NotFoundException(`Connection with ID ${connectionId} not found.`);
+        }
+      } else {
+        connection = await this.getActiveConnection();
       }
-    } else {
-      connection = await this.getActiveConnection();
-    }
 
-    // --- Determine Protocol ---
-    // More robust protocol determination based on common ports
-    let protocol: string;
-    if (connection.port === 443 || connection.port === 8729) {
-      protocol = 'https';
-    } else if (connection.port === 80 || connection.port === 8728) {
-      protocol = 'http';
-    } else {
-      // Default assumption, might be wrong. Log this.
-      protocol = connection.port === 443 ? 'https' : 'http'; // Keep your existing logic as fallback
-      this.logger.warn(`Uncommon port ${connection.port} detected. Assuming protocol: ${protocol}. Verify MikroTik service configuration.`);
-    }
-
-    const baseURL = `${protocol}://${connection.host}:${connection.port}/rest`;
-    const auth: AxiosBasicCredentials = {
-      username: connection.username,
-      password: connection.password,
-    };
-
-    this.logger.debug(`Attempting to connect to MikroTik at ${baseURL} with user ${auth.username}`);
-
-    // --- Perform the Request ---
-    // Increased timeout for testing, consider making configurable
-    const response = await axios.get(`${baseURL}/system/resource`, {
-      auth,
-      timeout: 15000, // Increased timeout to 15 seconds for testing
-      // --- Handle Self-Signed Certificates (FOR TESTING ONLY!) ---
-      // NEVER do this in production. Fix the cert properly.
-      httpsAgent: new (require('https')).Agent({ rejectUnauthorized: false }), // Import 'https' at the top
-      // --- Optional: Add better error logging ---
-    });
-
-    if (response.status === 200) {
-      this.logger.log(`✅ Successfully connected to MikroTik at ${baseURL}`);
-      return { success: true, message: 'Connection successful' };
-    } else {
-      const errorMsg = `Unexpected response status: ${response.status} - ${response.statusText}`;
-      this.logger.warn(`⚠️ Unexpected response from MikroTik (${baseURL}): ${errorMsg}`);
-      return { success: false, message: errorMsg };
-    }
-  } catch (error) {
-    // --- Enhanced Error Logging ---
-    let errorMessage = 'Unknown error';
-    if (error.code) {
-      errorMessage = `Network/System Error Code: ${error.code}`;
-      // Common codes:
-      // ECONNREFUSED: Connection refused (service down/port blocked)
-      // ETIMEDOUT: Operation timed out (firewall/network)
-      // ENOTFOUND: DNS lookup failed (wrong host?)
-    } else if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      errorMessage = `HTTP Error ${error.response.status}: ${error.response.statusText}`;
-      if (error.response.data) {
-        errorMessage += ` - Details: ${JSON.stringify(error.response.data).substring(0, 200)}...`; // Truncate
+      // Determine protocol based on common ports
+      let protocol: string;
+      if (connection.port === 443 || connection.port === 8729) {
+        protocol = 'https';
+      } else if (connection.port === 80 || connection.port === 8728) {
+        protocol = 'http';
+      } else {
+        protocol = connection.port === 443 ? 'https' : 'http';
+        this.logger.warn(`Uncommon port ${connection.port} detected. Assuming protocol: ${protocol}. Verify MikroTik service configuration.`);
       }
-    } else if (error.request) {
-      // The request was made but no response was received
-      errorMessage = `No response received. Details: ${error.message}`;
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      errorMessage = `Request setup error: ${error.message}`;
-    }
 
-    this.logger.error(`❌ MikroTik connection test failed for ${ connection.host || 'unknown host'}:${connection?.port || 'unknown port'}`, errorMessage);
-    return { success: false, message: `Connection failed: ${errorMessage}` };
+      const baseURL = `${protocol}://${connection.host}:${connection.port}/rest`;
+      const auth: AxiosBasicCredentials = {
+        username: connection.username,
+        password: connection.password,
+      };
+
+      this.logger.debug(`Attempting to connect to MikroTik at ${baseURL} with user ${auth.username}`);
+
+      const response = await axios.get(`${baseURL}/system/resource`, {
+        auth,
+        timeout: 15000,
+        httpsAgent: new (require('https')).Agent({ rejectUnauthorized: false }), // Only for testing!
+      });
+
+      if (response.status === 200) {
+        this.logger.log(`✅ Successfully connected to MikroTik at ${baseURL}`);
+        return { success: true, message: 'Connection successful' };
+      } else {
+        const errorMsg = `Unexpected response status: ${response.status} - ${response.statusText}`;
+        this.logger.warn(`⚠️ Unexpected response from MikroTik (${baseURL}): ${errorMsg}`);
+        return { success: false, message: errorMsg };
+      }
+    } catch (error) {
+      let errorMessage = 'Unknown error';
+      if (error.code) {
+        errorMessage = `Network/System Error Code: ${error.code}`;
+      } else if (error.response) {
+        errorMessage = `HTTP Error ${error.response.status}: ${error.response.statusText}`;
+        if (error.response.data) {
+          errorMessage += ` - Details: ${JSON.stringify(error.response.data).substring(0, 200)}...`;
+        }
+      } else if (error.request) {
+        errorMessage = `No response received. Details: ${error.message}`;
+      } else {
+        errorMessage = `Request setup error: ${error.message}`;
+      }
+
+      this.logger.error(`❌ MikroTik connection test failed for ${connection?.host || 'unknown host'}:${connection?.port || 'unknown port'}`, errorMessage);
+      return { success: false, message: `Connection failed: ${errorMessage}` };
+    }
   }
-}
 
+  /**
+   * ✅ Get all Simple Queues from MikroTik
+   */
+  async getQueueList(): Promise<{ success: boolean; data?: MikrotikQueue[]; message?: string }> {
+    try {
+      const api = await this.createApiClient();
 
+      const response = await api.get('/queue/simple'); // MikroTik REST API path for simple queues
+
+      if (response.status === 200) {
+        const queues = response.data.map((queue: any) => ({
+          id: queue['.id'],
+          name: queue.name,
+          target: queue.target,
+          maxLimit: queue['max-limit'],
+          burstLimit: queue['burst-limit'],
+          burstThreshold: queue['burst-threshold'],
+          burstTime: queue['burst-time'],
+          priority: queue.priority,
+          queueType: queue['queue-type'],
+          parent: queue.parent,
+          packetMarks: queue['packet-marks'],
+          excludedAddresses: queue['excluded-addresses'],
+          interface: queue.interface,
+          disabled: queue.disabled === 'true',
+          dynamic: queue.dynamic === 'true',
+          limitAt: queue['limit-at'],
+          // Parse rate from maxLimit (e.g., "1M/1M" -> { up: "1M", down: "1M" })
+          rate: this.parseRate(queue['max-limit']),
+        }));
+
+        this.logger.log(`📋 Retrieved ${queues.length} queue entries from MikroTik`);
+        return { success: true, data: queues };
+      } else {
+        return { success: false, message: `Unexpected response: ${response.status}` };
+      }
+    } catch (error) {
+      this.logger.error('Failed to fetch queue list', error.stack);
+      return { success: false, message: `Failed to fetch queue list: ${error.message}` };
+    }
+  }
+
+  /**
+   * ✅ Enable a queue entry by ID
+   */
+  async enableQueueById(queueId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const api = await this.createApiClient();
+
+      const response = await api.patch(`/queue/simple/${queueId}`, {
+        disabled: false,
+      });
+
+      if (response.status === 200) {
+        this.logger.log(`✅ Enabled queue ID: ${queueId}`);
+        return { success: true, message: `Queue ${queueId} enabled successfully` };
+      } else {
+        return { success: false, message: `Failed to enable queue ${queueId}` };
+      }
+    } catch (error) {
+      this.logger.error(`Failed to enable queue ${queueId}`, error.stack);
+      return { success: false, message: `Failed to enable queue: ${error.message}` };
+    }
+  }
+
+  /**
+   * ✅ Disable a queue entry by ID
+   */
+  async disableQueueById(queueId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const api = await this.createApiClient();
+
+      const response = await api.patch(`/queue/simple/${queueId}`, {
+        disabled: true,
+      });
+
+      if (response.status === 200) {
+        this.logger.log(`🔴 Disabled queue ID: ${queueId}`);
+        return { success: true, message: `Queue ${queueId} disabled successfully` };
+      } else {
+        return { success: false, message: `Failed to disable queue ${queueId}` };
+      }
+    } catch (error) {
+      this.logger.error(`Failed to disable queue ${queueId}`, error.stack);
+      return { success: false, message: `Failed to disable queue: ${error.message}` };
+    }
+  }
+
+  /**
+   * ✅ Get list of users from your database with their IPs from MikroTik mapping
+   */
+  async getUsersWithIps(): Promise<{ success: boolean; data?: any[]; message?: string }> {
+    try {
+      // Join User with MikroTikUser to get IP mapping
+      const users = await this.userRepository
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.mikrotikUser', 'mikrotikUser') // Assuming you have this relation
+        .select([
+          'user.id',
+          'user.name',
+          'user.customerId',
+          'user.status',
+          'user.phoneNumber',
+          'mikrotikUser.ipAddress',
+          'mikrotikUser.isEnabled as isMikrotikEnabled',
+        ])
+        .getMany();
+
+      const result = users.map(user => ({
+        id: user.id,
+        name: user.name,
+        customerId: user.customerId,
+        status: user.status,
+        phone: user.phone_number,
+        ipAddress: user.mikrotikUser?.ipAddress || 'Not Assigned',
+        isMikrotikEnabled: user.mikrotikUser?.isEnabled ?? false,
+        mikrotikUsername: user.mikrotikUser?.mikrotikUsername || 'Not Set',
+      }));
+
+      this.logger.log(`👥 Retrieved ${result.length} users with IP mappings`);
+      return { success: true, data: result };
+    } catch (error) {
+      this.logger.error('Failed to fetch users with IPs', error.stack);
+      return { success: false, message: `Failed to fetch users: ${error.message}` };
+    }
+  }
+
+  /**
+   * ✅ Block user by User ID (from your database)
+   */
   async blockUserByUserId(userId: string): Promise<{ success: boolean; message: string }> {
     const mikrotikUser = await this.mikrotikUserRepository.findOne({
       where: { userId },
-      relations: ['user'], // Load related User entity if needed
+      relations: ['user'],
     });
 
     if (!mikrotikUser) {
@@ -164,29 +302,19 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
     try {
       const api = await this.createApiClient();
 
-      const disableResponse = await api.patch(`/ip/hotspot/user/${mikrotikUser.mikrotikUsername}`, {
+      const response = await api.patch(`/ip/hotspot/user/${mikrotikUser.mikrotikUsername}`, {
         disabled: true,
       });
 
-      if (disableResponse.status !== 200) {
+      if (response.status !== 200) {
         throw new Error(`Failed to disable user ${mikrotikUser.mikrotikUsername}`);
       }
 
-      // 2. (Optional) Remove from active sessions
-      // You might need to find and remove the user from `/ip/hotspot/active`
-      // This often requires a separate lookup by username or IP.
-      // const activeSessions = await api.get(`/ip/hotspot/active`, {
-      //   params: { '.user': mikrotikUser.mikrotikUsername }
-      // });
-      // for (const session of activeSessions.data) {
-      //   await api.delete(`/ip/hotspot/active/${session['.id']}`);
-      // }
-
-      // 3. Update local database
+      // Update local database
       mikrotikUser.isEnabled = false;
       await this.mikrotikUserRepository.save(mikrotikUser);
 
-      this.logger.log(`Blocked MikroTik user ${mikrotikUser.mikrotikUsername} (App User ID: ${userId})`);
+      this.logger.log(`🔒 Blocked MikroTik user ${mikrotikUser.mikrotikUsername} (App User ID: ${userId})`);
       return { success: true, message: `User ${userId} blocked successfully.` };
     } catch (error) {
       this.logger.error(`Failed to block user ${userId}`, error.stack);
@@ -194,6 +322,9 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
     }
   }
 
+  /**
+   * ✅ Unblock user by User ID (from your database)
+   */
   async unblockUserByUserId(userId: string): Promise<{ success: boolean; message: string }> {
     const mikrotikUser = await this.mikrotikUserRepository.findOne({
       where: { userId },
@@ -211,19 +342,19 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
     try {
       const api = await this.createApiClient();
 
-      const enableResponse = await api.patch(`/ip/hotspot/user/${mikrotikUser.mikrotikUsername}`, {
+      const response = await api.patch(`/ip/hotspot/user/${mikrotikUser.mikrotikUsername}`, {
         disabled: false,
       });
 
-      if (enableResponse.status !== 200) {
+      if (response.status !== 200) {
         throw new Error(`Failed to enable user ${mikrotikUser.mikrotikUsername}`);
       }
 
-      // 2. Update local database
+      // Update local database
       mikrotikUser.isEnabled = true;
       await this.mikrotikUserRepository.save(mikrotikUser);
 
-      this.logger.log(`Unblocked MikroTik user ${mikrotikUser.mikrotikUsername} (App User ID: ${userId})`);
+      this.logger.log(`🔓 Unblocked MikroTik user ${mikrotikUser.mikrotikUsername} (App User ID: ${userId})`);
       return { success: true, message: `User ${userId} unblocked successfully.` };
     } catch (error) {
       this.logger.error(`Failed to unblock user ${userId}`, error.stack);
@@ -231,6 +362,9 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
     }
   }
 
+  /**
+   * ✅ Get user status by User ID
+   */
   async getUserStatusByUserId(userId: string): Promise<{ success: boolean; data?: any; message?: string }> {
     const mikrotikUser = await this.mikrotikUserRepository.findOne({
       where: { userId },
@@ -244,16 +378,16 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
     try {
       const api = await this.createApiClient();
 
-      // 1. Get Hotspot User details
+      // Get Hotspot User details
       const userResponse = await api.get(`/ip/hotspot/user/${mikrotikUser.mikrotikUsername}`);
       const userDetails = userResponse.data;
 
-      // 2. Check if user is active (in /ip/hotspot/active)
+      // Check if user is active
       const activeResponse = await api.get(`/ip/hotspot/active`, {
         params: { '?user': mikrotikUser.mikrotikUsername },
       });
       const isActive = activeResponse.data.length > 0;
-      const activeSession = activeResponse.data[0]; // Get first active session if any
+      const activeSession = activeResponse.data[0];
 
       return {
         success: true,
@@ -272,19 +406,22 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
     }
   }
 
+  /**
+   * ✅ Get all users with their status
+   */
   async getAllUsersWithStatus(): Promise<{ success: boolean; data?: any[]; message?: string }> {
     try {
       const api = await this.createApiClient();
 
-      // 1. Get all MikroTik users
+      // Get all MikroTik users
       const usersResponse = await api.get('/ip/hotspot/user');
       const mikrotikUsers = usersResponse.data;
 
-      // 2. Get all active sessions
+      // Get all active sessions
       const activeResponse = await api.get('/ip/hotspot/active');
       const activeSessions = activeResponse.data;
 
-      // 3. Combine data
+      // Combine data
       const result = mikrotikUsers.map(user => {
         const isActive = activeSessions.some(session => session.user === user.name);
         const activeSession = activeSessions.find(session => session.user === user.name);
@@ -302,15 +439,15 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
     }
   }
 
-  
+  /**
+   * ✅ Add user mapping
+   */
   async addUserMapping(userId: string, mikrotikUsername: string, ipAddress: string): Promise<{ success: boolean; message: string }> {
-    // 1. Check if user exists in main User table (optional)
     const userExists = await this.userRepository.findOneBy({ id: userId });
     if (!userExists) {
       return { success: false, message: `User with ID ${userId} not found.` };
     }
 
-    // 2. Check if mapping already exists
     const existingMapping = await this.mikrotikUserRepository.findOne({
       where: [{ userId }, { mikrotikUsername }, { ipAddress }],
     });
@@ -318,12 +455,11 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
       return { success: false, message: 'User ID, MikroTik username, or IP address already mapped.' };
     }
 
-    // 3. Create mapping
     const newMapping = this.mikrotikUserRepository.create({
       userId,
       mikrotikUsername,
       ipAddress,
-      isEnabled: true, // Default to enabled
+      isEnabled: true,
     });
 
     try {
@@ -336,7 +472,20 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
     }
   }
 
+  /**
+   * ✅ Parse rate from MikroTik format (e.g., "1M/1M" -> { up: "1M", down: "1M" })
+   */
+  private parseRate(rateString: string): { up: string; down: string } {
+    if (!rateString || !rateString.includes('/')) {
+      return { up: '0', down: '0' };
+    }
+    const [up, down] = rateString.split('/');
+    return { up: up.trim(), down: down.trim() };
+  }
 
+  /**
+   * ✅ Cron job: Handle expired subscriptions
+   */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleExpiredSubscriptions() {
     this.logger.log('🔍 [CRON] Starting automatic user blocking check...');
@@ -345,7 +494,7 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
       const usersToBlock = await this.userRepository.find({
         where: {
           status: UserStatus.AKTIF,
-          subscription: {due_date: LessThanOrEqual(new Date()) },
+          subscription: { due_date: LessThanOrEqual(new Date()) },
         },
         relations: ['mikrotikUser'],
       });
@@ -359,22 +508,22 @@ async testConnection(connectionId?: string): Promise<{ success: boolean; message
 
       for (const user of usersToBlock) {
         if (!user.mikrotikUser || !user.mikrotikUser.isEnabled) {
-            this.logger.debug(`⏭️ [CRON] Skipping user ${user.id} - No active MikroTik mapping or already blocked.`);
-            continue;
+          this.logger.debug(`⏭️ [CRON] Skipping user ${user.id} - No active MikroTik mapping or already blocked.`);
+          continue;
         }
 
         try {
-            this.logger.log(`🔒 [CRON] Blocking user ${user.id} (${user.mikrotikUser.mikrotikUsername})...`);
-            const blockResult = await this.blockUserByUserId(user.id); // Use existing logic
+          this.logger.log(`🔒 [CRON] Blocking user ${user.id} (${user.mikrotikUser.mikrotikUsername})...`);
+          const blockResult = await this.blockUserByUserId(user.id);
 
-            if (blockResult.success) {
-                this.logger.log(`✅ [CRON] Successfully blocked user ${user.id}.`);
-                await this.userRepository.update(user.id, { status: UserStatus.NONAKTIF });
-            } else {
-                this.logger.warn(`⚠️ [CRON] Failed to block user ${user.id}: ${blockResult.message}`);
-            }
+          if (blockResult.success) {
+            this.logger.log(`✅ [CRON] Successfully blocked user ${user.id}.`);
+            await this.userRepository.update(user.id, { status: UserStatus.NONAKTIF });
+          } else {
+            this.logger.warn(`⚠️ [CRON] Failed to block user ${user.id}: ${blockResult.message}`);
+          }
         } catch (blockError) {
-            this.logger.error(`💥 [CRON] Error blocking user ${user.id}`, blockError.stack);
+          this.logger.error(`💥 [CRON] Error blocking user ${user.id}`, blockError.stack);
         }
       }
 

@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: abi-isp-be
-  namespace: abi-isp-staging
+  name: api-mbinet
+  namespace: mbinet-prod
 spec:
   selector:
     matchLabels:
-      app: abi-isp-be
+      app: api-mbinet
   replicas: 1
   template:
     metadata:
       labels:
-        app: abi-isp-be
+        app: api-mbinet
     spec:
       containers:
-        - name: abi-isp-be
-          image: registry.empatnusabangsa.com/empatnusabangsa/abi-isp-be:<VERSION>
+        - name: api-mbinet
+          image: registry.empatnusabangsa.com/empatnusabangsa/mbinet-be:<VERSION>
           ports:
             - containerPort: 5000
           envFrom:
             - secretRef:
-                name: abi-isp-be-env
+                name: api-mbinet-env
       imagePullSecrets:
         - name: regcred
 

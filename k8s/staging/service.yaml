@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: abi-isp-be
-  namespace: abi-isp-staging
+  name: api-mbinet
+  namespace: mbinet-prod
   labels:
-    run: abi-isp-be
+    run: api-mbinet
 spec:
   ports:
     - port: 5000
       protocol: TCP
   selector:
-    app:  abi-isp-be
+    app:  api-mbinet
