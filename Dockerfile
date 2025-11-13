@@ -1,14 +1,16 @@
 # ================================
-# Stage 1: Builder (with resource optimizations)
+# Stage 1: Builder (using Debian for stability)
 # ================================
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 ENV NODE_ENV=build
 
 WORKDIR /home/node
 
 # Install minimal build tools (only what's needed for node-gyp if any native deps exist)
-RUN apk add --no-cache python3 make g++ git
+# Note: No need for python/make/g++ if no native modules are installed
+# If you have native deps (e.g., bcrypt, sharp), uncomment these:
+# RUN apt-get update && apt-get install -y python3 build-essential git
 
 # Copy package files first (to leverage Docker cache)
 COPY package.json yarn.lock ./
@@ -17,8 +19,9 @@ COPY package.json yarn.lock ./
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Install ALL dependencies (including dev)
-RUN yarn install --frozen-lockfile --ignore-scripts
+# Install ALL dependencies
+# ✅ Use Debian's stable crypto libraries
+RUN yarn install --frozen-lockfile --ignore-scripts --network-timeout 100000
 
 # Copy source code
 COPY . .
@@ -33,20 +36,26 @@ RUN yarn install --production --frozen-lockfile --ignore-scripts && \
 # ================================
 # Stage 2: Final Runtime Image
 # ================================
-FROM node:20-alpine AS runtime
+FROM node:20-slim AS runtime
 
 # Install system dependencies in a single layer (reduces size)
-RUN apk add --no-cache \
+# ✅ Install Chromium and fonts
+RUN apt-get update && \
+    apt-get install -y \
     chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    dumb-init && \
-    # Create non-root user
-    addgroup -S -g 1001 node && \
-    adduser -S -u 1001 node
+    fonts-liberation \
+    libappindicator3-1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libdrm2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libxss1 \
+    libgtk-3-0 \
+    dumb-init \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set Puppeteer environment variables
 ENV NODE_ENV=production \
@@ -54,6 +63,9 @@ ENV NODE_ENV=production \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     XDG_CONFIG_HOME=/tmp/.config \
     XDG_CACHE_HOME=/tmp/.cache
+
+# Create non-root user
+RUN groupadd -r node && useradd -r -g node node
 
 USER node
 WORKDIR /home/node
