@@ -126,6 +126,31 @@ async confirmPayment(paymentId: string) {
       );
     }
 
+    const paket = await this.dataSource.manager.findOne(Paket, {
+      where: { id: payment.paket.id },
+    });
+    if (!paket) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'Paket not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    const bank = await this.dataSource.manager.findOne(Bank, {
+      where: { id: payment.bank.id },
+    });
+    if (!bank) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'Bank not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
   // Get user's latest active subscription
   const latestSubscription = await this.dataSource.manager.findOne(Subscription, {
     where: { user: { id: payment.user.id } },
@@ -152,21 +177,21 @@ if (latestSubscription !== null) {
   await this.dataSource.manager.update(Subscription, latestSubscription.id, {
     start_date: startDateStr,
     due_date: dueDateStr,
-    paket: payment.paket,
-    banks: payment.bank,
+    paket: paket,
+    banks: bank,
   });
 } else {
    await this.dataSource.manager.save(Subscription, {
     start_date: startDateStr,
     due_date: dueDateStr,
-    paket: payment.paket,
-    banks: payment.bank,
+    paket: paket,
+    banks: bank,
     user: payment.user,
   });
 }
   await this.dataSource.manager.update(User, payment.user.id, {
     subscription: payment.user.subscription,
-    paket: payment.paket,
+    paket: paket,
     status: UserStatus.AKTIF,
   });
 
@@ -174,6 +199,9 @@ if (latestSubscription !== null) {
     status: 'CONFIRMED',
     start_date: startDateStr,
     due_date: dueDateStr,
+    paket: paket,
+    bank: bank,
+    paidAt: new Date(),
     confirmedAt: new Date(),
   });
 
