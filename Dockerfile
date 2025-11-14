@@ -3,37 +3,49 @@
 # ================================
 FROM node:20-alpine3.20 AS builder
 
+# Use faster mirrors for reliability (important for Asia regions)
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirror.sg.gs/alpine|g' /etc/apk/repositories
+
+# Set build environment
 ENV NODE_ENV=build
-WORKDIR /home/node
+WORKDIR /app
 
-# Install system tools
-RUN apk add --no-cache git python3 make g++
+# Install essential build tools (for native modules)
+RUN apk add --no-cache --virtual .build-deps \
+    git \
+    python3 \
+    make \
+    g++
 
+# Copy dependency files first for caching
 COPY package.json yarn.lock ./
 
-# Set environment
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# Skip downloading Chromium during install
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Install all dependencies
+# Install dependencies
 RUN yarn install --frozen-lockfile --ignore-scripts
 
-# Copy source code
+# Copy all source files
 COPY . .
 
-# Build app
-RUN yarn run build
+# Build the app (NestJS/Next/etc.)
+RUN yarn build
 
-# Reinstall only production deps
+# Remove dev dependencies and build tools for smaller final image
 RUN yarn install --production --frozen-lockfile --prefer-offline && \
-    yarn cache clean
+    yarn cache clean && \
+    apk del .build-deps
 
 # ================================
 # Stage 2: Runtime
 # ================================
 FROM node:20-alpine3.20 AS runtime
 
-# Install Chromium + fonts
+# Use faster mirrors again for runtime
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirror.sg.gs/alpine|g' /etc/apk/repositories
+
+# Install Chromium and minimal dependencies
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -42,24 +54,23 @@ RUN apk add --no-cache \
     ca-certificates \
     ttf-freefont
 
-# Set environment
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+# Environment configuration for Puppeteer
+ENV NODE_ENV=production \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     XDG_CONFIG_HOME=/tmp/.chromium \
-    XDG_CACHE_HOME=/tmp/.chromium \
-    NODE_ENV=production
+    XDG_CACHE_HOME=/tmp/.chromium
 
-# Create non-root user safely
-RUN if ! getent group node > /dev/null; then addgroup -S node; fi && \
-    if ! getent passwd node > /dev/null; then adduser -S node -G node; fi
+# Create non-root user (safer for production)
+RUN addgroup -S app && adduser -S app -G app
+USER app
+WORKDIR /home/app
 
-USER node
-WORKDIR /home/node
+# Copy from builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/yarn.lock ./yarn.lock
+COPY --from=builder /app/node_modules ./node_modules
 
-# Copy built files
-COPY --from=builder /home/node/dist ./dist
-COPY --from=builder /home/node/package*.json ./
-COPY --from=builder /home/node/yarn.lock ./yarn.lock
-COPY --from=builder /home/node/node_modules ./node_modules
-
+# Default command
 CMD ["node", "dist/main.js"]
