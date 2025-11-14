@@ -3,8 +3,12 @@
 # ================================
 FROM node:20-alpine3.20 AS builder
 
-# Use faster mirrors for reliability (important for Asia regions)
-RUN sed -i 's|dl-cdn.alpinelinux.org|mirror.sg.gs/alpine|g' /etc/apk/repositories
+# ✅ Correct mirror (no duplicate /alpine)
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirror.sg.gs|g' /etc/apk/repositories
+
+# Optional fallback (if first mirror fails)
+RUN echo "https://mirror.leaseweb.net/alpine/v3.20/main" >> /etc/apk/repositories && \
+    echo "https://mirror.leaseweb.net/alpine/v3.20/community" >> /etc/apk/repositories
 
 # Set build environment
 ENV NODE_ENV=build
@@ -37,13 +41,16 @@ RUN yarn install --production --frozen-lockfile --prefer-offline && \
     yarn cache clean && \
     apk del .build-deps
 
+
 # ================================
 # Stage 2: Runtime
 # ================================
 FROM node:20-alpine3.20 AS runtime
 
-# Use faster mirrors again for runtime
-RUN sed -i 's|dl-cdn.alpinelinux.org|mirror.sg.gs/alpine|g' /etc/apk/repositories
+# ✅ Use the same reliable mirrors for runtime
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirror.sg.gs|g' /etc/apk/repositories && \
+    echo "https://mirror.leaseweb.net/alpine/v3.20/main" >> /etc/apk/repositories && \
+    echo "https://mirror.leaseweb.net/alpine/v3.20/community" >> /etc/apk/repositories
 
 # Install Chromium and minimal dependencies
 RUN apk add --no-cache \
