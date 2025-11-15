@@ -20,6 +20,7 @@ import { MailModule } from '../mail/mail.module'; // 👈 Import MailModule
 import { UserService } from '#/user/user.service';
 import { PaymentService } from '#/payment/payment.service';
 import { WhatsAppController } from './wa.controller';
+import { JwtService } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { WhatsAppController } from './wa.controller';
     ReminderService,
     UserService,
     PaymentService,
+    JwtService
   ],
   exports: [WhatsAppService],
 })
