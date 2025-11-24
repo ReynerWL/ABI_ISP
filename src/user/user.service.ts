@@ -74,7 +74,7 @@ export class UserService {
       }
       
       const role = await roleRepo.findOneOrFail({
-        where: { name: createUserDto.role },
+        where: { name: ILike(createUserDto.role) },
       });
 
       const data = new User();
@@ -143,7 +143,7 @@ export class UserService {
       }
 
       const role = await roleRepo.findOneOrFail({
-        where: { name: ILike(`%user%`) }, 
+        where: { name: ILike(`user`) }, 
       });
 
       const data = new User();
@@ -224,7 +224,7 @@ export class UserService {
     const roleRepo = this.dataSource.getRepository(Role);
 
     const role = await roleRepo.findOneOrFail({
-      where: { name: ILike(`%admin%`) },
+      where: { name: ILike(`admin`) },
     });
 
     const data = new User();
@@ -288,6 +288,7 @@ export class UserService {
       }
     }
 
+    role = role.toLocaleUpperCase()
     if (role) {
       qb.andWhere('role.name = :role', { role });
     }

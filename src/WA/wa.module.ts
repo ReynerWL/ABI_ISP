@@ -21,12 +21,12 @@ import { UserService } from '#/user/user.service';
 import { PaymentService } from '#/payment/payment.service';
 import { WhatsAppController } from './wa.controller';
 import { JwtService } from '@nestjs/jwt';
+import { MailService } from '#/mail/mail.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Payment]),
     UserModule,
-    PaymentModule,
     MailModule, // 👈 Provides MailService
   ],
   controllers: [WhatsAppController],
@@ -37,8 +37,8 @@ import { JwtService } from '@nestjs/jwt';
     MenuUIService,
     ReminderService,
     UserService,
-    PaymentService,
-    JwtService
+    JwtService,
+    MailService
   ],
   exports: [WhatsAppService],
 })

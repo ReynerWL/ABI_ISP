@@ -6,6 +6,7 @@ import { DataSource, LessThan, MoreThanOrEqual } from 'typeorm';
 import { MenuHandlerService } from './menuHandler';
 import { UserService } from '#/user/user.service';
 import { UserStatus } from '#/user/entities/user.entity';
+import { MailService } from '#/mail/mail.service';
 
 @Injectable()
 export class ReminderService {
@@ -16,6 +17,7 @@ export class ReminderService {
     private menuHandler: MenuHandlerService, // ✅ Inject MenuHandlerService
     private dataSource: DataSource,
     private jwtService: JwtService,         // ✅ For secure links
+    private mailservice: MailService
   ) {}
 
   /**
@@ -78,10 +80,6 @@ export class ReminderService {
 
       for (const user of usersNeedingReminder) {
         try {
-          // ✅ Generate secure upload link
-          const uploadToken = await this.generateUploadToken(user.id);
-          const uploadLink = `https://your-isp.com/payments/upload?token=${uploadToken}`;
-
           // ✅ Send reminder via WhatsApp using MenuHandlerService
           await this.menuHandler.sendSubscriptionReminder(
             this.whatsappClient,
@@ -89,6 +87,10 @@ export class ReminderService {
             daysLeft,
             user.id, // Pass user ID for token generation inside menuHandler if needed
           );
+
+          await this.mailservice.sendSubscriptionReminder(
+            user.id, new Date(dueDate)
+          )
 
           this.logger.log(`📅 Sent ${daysLeft}-day reminder to ${user.phoneNumber} (User ID: ${user.id})`);
         } catch (error) {
@@ -123,8 +125,7 @@ export class ReminderService {
         });
 
         // ✅ Generate secure upload link for renewal
-        const uploadToken = await this.generateUploadToken(user.id);
-        const uploadLink = `https://your-isp.com/payments/upload?token=${uploadToken}`;
+        const uploadLink = `https://mbinet.click/`;
 
         // ✅ Send 'service expired' notice via WhatsApp
         await this.menuHandler.sendServiceExpired(
@@ -132,6 +133,10 @@ export class ReminderService {
           `${user.phoneNumber}@c.us`,
           user.id, // Pass user ID if needed inside menuHandler
         );
+
+        await this.mailservice.sendExpired(
+          user.id, now
+        )
 
         this.logger.log(`🔴 Marked subscription as expired for ${user.phoneNumber} (User ID: ${user.id})`);
       } catch (error) {

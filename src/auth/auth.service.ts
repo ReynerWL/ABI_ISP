@@ -42,7 +42,7 @@ export class AuthService {
       );
     }
 
-    if (dataUser.status != 'Aktif' && dataUser.role.name == 'Admin') {
+    if (dataUser.status != 'Aktif' && dataUser.role.name.toLocaleUpperCase() == 'Admin') {
       throw new HttpException(
         {
           statusCode: HttpStatus.UNAUTHORIZED,
@@ -50,7 +50,7 @@ export class AuthService {
         },
         HttpStatus.UNAUTHORIZED,
       );
-    }else if (dataUser.role.name == 'Admin' && dataUser.status == 'Aktif'){
+    }else if (dataUser.role.name.toLocaleUpperCase() == 'Admin' && dataUser.status == 'Aktif'){
       await this.usersRepository.update(dataUser.id, {
         last_login: new Date(),
       });

@@ -1,16 +1,17 @@
 // src/file/minio_storage.ts
+
 import * as Minio from 'minio';
 
 export interface MinioStorageConfig {
   bucket: string;
   endPoint: string;
   port: number;
-  useSSL: boolean; // Must be boolean, not string
+  useSSL: boolean;
 }
 
 export class MinioStorageService {
-  private client: Minio.Client;
-  private config: MinioStorageConfig;
+  public client: Minio.Client;   // <-- dibuat public agar bisa diakses FileService
+  public config: MinioStorageConfig; // <-- juga dibuat public
 
   constructor(config: MinioStorageConfig) {
     this.config = config;
@@ -18,7 +19,7 @@ export class MinioStorageService {
     this.client = new Minio.Client({
       endPoint: this.config.endPoint,
       port: this.config.port,
-      useSSL: this.config.useSSL, // true for HTTPS
+      useSSL: this.config.useSSL,
       accessKey: process.env.MINIO_ACCESS_KEY,
       secretKey: process.env.MINIO_SECRET_KEY,
     });
@@ -39,43 +40,59 @@ export class MinioStorageService {
     }
   }
 
-  async uploadBuffer(buffer: Buffer, fileName: string): Promise<string> {
-    const key = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  async uploadBuffer(
+    buffer: Buffer,
+    fileName: string,
+    mimetype: string,
+  ): Promise<string> {
     const metaData = {
-      'Content-Type': this.getContentType(fileName),
+      'Content-Type': mimetype,
       'x-amz-acl': 'public-read',
     };
 
     try {
       await this.client.putObject(
         this.config.bucket,
-        key,
+        fileName,
         buffer,
         buffer.length,
         metaData,
       );
 
-      return this.getFileUrl(key);
+      return this.getFileUrl(fileName);
     } catch (error) {
       console.error('❌ Upload failed:', error.message);
       throw new Error(`Failed to upload file: ${error.message}`);
     }
   }
 
+  /**
+   * List file dari folder tertentu
+   */
+  listObjects(prefix: string): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      const objects: string[] = [];
+
+      const stream = this.client.listObjects(
+        this.config.bucket,
+        prefix.endsWith('/') ? prefix : `${prefix}/`,
+        true, // recursive
+      );
+
+      stream.on('data', (obj) => {
+        objects.push(obj.name);
+      });
+
+      stream.on('end', () => resolve(objects));
+      stream.on('error', (err) => reject(err));
+    });
+  }
+
+  /**
+   * Generate URL publik
+   */
   getFileUrl(key: string): string {
     const protocol = this.config.useSSL ? 'https://' : 'http://';
     return `${protocol}${this.config.endPoint}:${this.config.port}/${this.config.bucket}/${key}`;
-  }
-
-  private getContentType(fileName: string): string {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    const types: Record<string, string> = {
-      jpg: 'image/jpeg',
-      jpeg: 'image/jpeg',
-      png: 'image/png',
-      gif: 'image/gif',
-      webp: 'image/webp',
-    };
-    return types[ext] || 'application/octet-stream';
   }
 }

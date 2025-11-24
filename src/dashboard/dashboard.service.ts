@@ -28,7 +28,7 @@ export class DashboardService {
       whereCondition.createdAt = Between(startOfYear, endOfYear);
     }
     const dataCustomer = await this.dataSource.manager.find(User, {
-      where: { ...whereCondition, role: { name: ILike('%user%') } },
+      where: { ...whereCondition, role: { name: ILike('user') } },
       relations: { role: true },
     });
     const newCust = dataCustomer.filter(
@@ -58,7 +58,7 @@ export class DashboardService {
 
     //
     const dataPendingInactive = await this.dataSource.manager.find(User, {
-      where: { status: In([ILike(`%${UserStatus.PENDING}%`),ILike(`%${UserStatus.NONAKTIF}%`)]), role: { name: ILike('%user%')} },
+      where: { status: In([ILike(`%${UserStatus.PENDING}%`),ILike(`%${UserStatus.NONAKTIF}%`)]), role: { name: ILike('user')} },
       select: { customerId: true, updatedAt: true, status: true },
     });
 

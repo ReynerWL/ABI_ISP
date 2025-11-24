@@ -1,10 +1,10 @@
-<!-- src/mail/templates/reminder.hbs -->
+<!-- src/mail/templates/expired.hbs -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Subscription Reminder</title>
+  <title>Layanan Dinonaktifkan</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -22,8 +22,8 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .header {
-      background: #ffc107;
-      color: #333;
+      background: #dc3545;
+      color: #fff;
       padding: 30px 20px;
       text-align: center;
     }
@@ -36,12 +36,12 @@
       line-height: 1.6;
     }
     .content h2 {
-      color: #ffc107;
+      color: #dc3545;
       margin-top: 0;
     }
     .alert {
-      background: #fff3cd;
-      border-left: 4px solid #ffc107;
+      background: #f8d7da;
+      border-left: 4px solid #dc3545;
       padding: 15px;
       margin: 20px 0;
       border-radius: 4px;
@@ -68,25 +68,31 @@
 <body>
   <div class="container">
     <div class="header">
-      <div class="icon">🔔</div>
-      <h1>Reminder: Renew Your Service</h1>
+      <div class="icon">⚠️</div>
+      <h1>Layanan Anda Telah Dinonaktifkan</h1>
     </div>
     <div class="content">
-      <h2>Hello {{name}},</h2>
-      <p>Your subscription for <strong>{{packageName}}</strong> will expire soon.</p>
+      <h2>Halo {{name}},</h2>
+      <p>
+        Kami ingin memberi tahu bahwa langganan Anda untuk 
+        <strong>{{packageName}}</strong> telah <strong>berakhir</strong>.
+      </p>
 
       <div class="alert">
-        <strong>Due Date:</strong> {{dueDate}}<br/>
-        Please make your payment before this date to avoid disconnection.
+        <strong>Tanggal Berakhir:</strong> {{dueDate}}<br/>
+        Silakan lakukan pembayaran untuk mengaktifkan kembali layanan Anda.
       </div>
 
-      <p>Stay connected without interruption by renewing today.</p>
+      <p>
+        Klik tombol di bawah ini untuk melakukan pembayaran dan mengaktifkan kembali koneksi Anda.
+      </p>
 
-      <a href="https://mbinet.click" class="btn">Make Payment Now</a>
+      <a href="https://mbinet.click" class="btn">Bayar Sekarang</a>
     </div>
+
     <div class="footer">
-      &copy; {{year}} {{companyName}}. All rights reserved.<br/>
-      This is an automated message, please do not reply.
+      &copy; {{year}} {{companyName}}. Seluruh hak cipta dilindungi.<br/>
+      Ini adalah pesan otomatis, mohon tidak membalas email ini.
     </div>
   </div>
 </body>

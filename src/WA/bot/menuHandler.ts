@@ -13,19 +13,17 @@ import { Payment } from '#/payment/entities/payment.entity';
 @Injectable()
 export class MenuHandlerService {
   private logger = new Logger('MenuHandlerService');
+  private whatsappClient: any;
 
   constructor(
-    private userService: UserService,
-    private paymentService: PaymentService,
     private menuUI: MenuUIService,
     private mailService: MailService,
-    private minioService: MinioStorageService,
-    private dataSource: DataSource,
-    private jwtService: JwtService,
   ) {}
 
   // --- NOTIFICATION METHODS ONLY ---
-
+  GlobalClient(client: any) {
+    this.whatsappClient = client;
+  }
   /**
    * Send subscription renewal reminder via WhatsApp
    */
@@ -36,19 +34,23 @@ export class MenuHandlerService {
     userId: string,
   ) {
     try {
-      const uploadToken = await this.generateUploadToken(userId);
-      const uploadLink = `https://your-isp.com/payments/upload?token=${uploadToken}`;
+      const link = `https://mbinet.click/`;
 
       await this.menuUI.sendSubscriptionReminder(
         client,
         customerNumber,
         daysLeft,
-        uploadLink,
+        link,
       );
 
-      this.logger.log(`⏰ Reminder sent to ${customerNumber} (${daysLeft} days left)`);
+      this.logger.log(
+        `⏰ Reminder sent to ${customerNumber} (${daysLeft} days left)`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send reminder to ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Failed to send reminder to ${customerNumber}`,
+        error.stack,
+      );
     }
   }
 
@@ -56,20 +58,23 @@ export class MenuHandlerService {
    * Send payment confirmation via WhatsApp
    */
   async sendPaymentConfirmed(
-    client: any,
     customerNumber: string,
     paymentId: string,
+    user_id: string,
   ) {
     try {
-      await this.menuUI.sendPaymentSuccess(
-        client,
-        customerNumber,
-        paymentId,
-      );
+      await this.menuUI.sendPaymentSuccess(this.whatsappClient, customerNumber, paymentId);
 
-      this.logger.log(`✅ Payment confirmed notification sent to ${customerNumber} (Payment: ${paymentId})`);
+      await this.mailService.sendPaymentSuccess(user_id, paymentId, new Date());
+
+      this.logger.log(
+        `✅ Payment confirmed notification sent to ${customerNumber} (Payment: ${paymentId})`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send confirmation to ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Failed to send confirmation to ${customerNumber}`,
+        error.stack,
+      );
     }
   }
 
@@ -77,25 +82,30 @@ export class MenuHandlerService {
    * Send payment rejection via WhatsApp
    */
   async sendPaymentRejected(
-    client: any,
     customerNumber: string,
     reason: string,
     userId: string,
   ) {
     try {
-      const uploadToken = await this.generateUploadToken(userId);
-      const uploadLink = `https://your-isp.com/payments/upload?token=${uploadToken}`;
+      const link = `https://mbinet.click/`;
 
       await this.menuUI.sendPaymentRejected(
-        client,
+        this.whatsappClient,
         customerNumber,
         reason,
-        uploadLink,
+        link,
       );
 
-      this.logger.log(`❌ Payment rejected notification sent to ${customerNumber} (Reason: ${reason})`);
+      await this.mailService.sendPaymentRejected(userId, reason);
+
+      this.logger.log(
+        `❌ Payment rejected notification sent to ${customerNumber} (Reason: ${reason})`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send rejection to ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Failed to send rejection to ${customerNumber}`,
+        error.stack,
+      );
     }
   }
 
@@ -108,18 +118,16 @@ export class MenuHandlerService {
     userId: string,
   ) {
     try {
-      const uploadToken = await this.generateUploadToken(userId);
-      const uploadLink = `https://your-isp.com/payments/upload?token=${uploadToken}`;
+      const link = `https://mbinet.click/`;
 
-      await this.menuUI.sendServiceExpired(
-        client,
-        customerNumber,
-        uploadLink,
-      );
+      await this.menuUI.sendServiceExpired(client, customerNumber, link);
 
       this.logger.log(`🔴 Service expired notice sent to ${customerNumber}`);
     } catch (error) {
-      this.logger.error(`Failed to send expired notice to ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Failed to send expired notice to ${customerNumber}`,
+        error.stack,
+      );
     }
   }
 
@@ -127,25 +135,26 @@ export class MenuHandlerService {
    * Send welcome message (when user registers)
    */
   async sendWelcomeMessage(
-    client: any,
     customerNumber: string,
     userName: string,
     userId: string,
   ) {
     try {
-      const uploadToken = await this.generateUploadToken(userId);
-      const uploadLink = `https://your-isp.com/payments/upload?token=${uploadToken}`;
+      const link = `https://mbinet.click/`;
 
       await this.menuUI.sendWelcomeMessage(
-        client,
+        this.whatsappClient,
         customerNumber,
         userName,
-        uploadLink,
+        link,
       );
 
       this.logger.log(`👋 Welcome message sent to ${customerNumber}`);
     } catch (error) {
-      this.logger.error(`Failed to send welcome message to ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Failed to send welcome message to ${customerNumber}`,
+        error.stack,
+      );
     }
   }
 
@@ -159,48 +168,52 @@ export class MenuHandlerService {
     userId: string,
   ) {
     try {
-      const uploadToken = await this.generateUploadToken(userId);
-      const uploadLink = `https://your-isp.com/payments/upload?token=${uploadToken}`;
+      const link = `https://mbinet.click/`;
 
       await this.menuUI.sendOverduePaymentReminder(
         client,
         customerNumber,
         daysOverdue,
-        uploadLink,
+        link,
       );
 
-      this.logger.log(`⚠️ Overdue reminder sent to ${customerNumber} (${daysOverdue} days overdue)`);
+      this.logger.log(
+        `⚠️ Overdue reminder sent to ${customerNumber} (${daysOverdue} days overdue)`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send overdue reminder to ${customerNumber}`, error.stack);
+      this.logger.error(
+        `Failed to send overdue reminder to ${customerNumber}`,
+        error.stack,
+      );
     }
   }
 
   /**
    * ✅ Generate a JWT token for secure upload link
    */
-  private async generateUploadToken(userId: string): Promise<string> {
-    const payload = {
-      sub: userId,
-      action: 'upload_payment_proof',
-      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // Expires in 24 hours
-    };
+  // private async generateUploadToken(userId: string): Promise<string> {
+  //   const payload = {
+  //     sub: userId,
+  //     action: 'upload_payment_proof',
+  //     exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // Expires in 24 hours
+  //   };
 
-    return this.jwtService.sign(payload, {
-      secret: process.env.JWT_UPLOAD_SECRET!,
-      algorithm: 'HS256',
-    });
-  }
+  //   return this.jwtService.sign(payload, {
+  //     secret: process.env.JWT_UPLOAD_SECRET!,
+  //     algorithm: 'HS256',
+  //   });
+  // }
 
   /**
    * Find user by phone number
    */
-  private async findUserByPhone(phoneJid: string): Promise<User | null> {
-    const phone = phoneJid.replace(/@c\.us$/, '').replace(/\D/g, '');
-    return await this.dataSource.manager.findOne(User, {
-      where: { phone_number: phone },
-      relations: ['paket', 'subscription'],
-    });
-  }
+  // private async findUserByPhone(phoneJid: string): Promise<User | null> {
+  //   const phone = phoneJid.replace(/@c\.us$/, '').replace(/\D/g, '');
+  //   return await this.dataSource.manager.findOne(User, {
+  //     where: { phone_number: phone },
+  //     relations: ['paket', 'subscription'],
+  //   });
+  // }
 
   // --- REMOVED: All interactive message handlers ---
   // - handleMessage

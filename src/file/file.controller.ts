@@ -1,4 +1,5 @@
 // src/file/file.controller.ts
+
 import {
   Controller,
   Post,
@@ -7,61 +8,71 @@ import {
   HttpStatus,
   BadRequestException,
   Body,
+  Get,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import * as uuid from 'uuid';
-import { MinioStorageService } from './minio_storage';
 import { Public } from '#/auth/public.decorator';
+import { FileService } from './file.service';
 import { extname } from 'path';
 
 @Controller('file')
 export class FileController {
-  constructor(private readonly minioService: MinioStorageService) {}
+  constructor(private readonly fileService: FileService) {}
 
   /**
-   * Handle file upload via REST API (e.g., admin dashboard)
+   * Upload file ke MinIO ke folder sesuai param
    */
   @Public()
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
-    @Body('type') type: string,
+    @Query('folder') folder: string,
+    @Body('type') type: string, // optional
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
 
-    // Validate file type
+    // Validasi file image
     if (!file.mimetype.startsWith('image/')) {
       throw new BadRequestException('Only image files are allowed');
     }
 
-    // Extract query params (via request) – but we need access to req
-    // So we'll move filename logic into service or use custom field
     const extension = extname(file.originalname);
-    const fileType = type || 'image';
-    const fileName = `${fileType}/${uuid.v4()}${extension}`;
 
-    try {
-      // Upload buffer to MinIO
-      const fileUrl = await this.minioService.uploadBuffer(
-        file.buffer,
-        fileName,
-      );
+    // jika folder tidak dikirim, default ke "misc"
+    const uploadFolder = folder?.trim() || 'misc';
 
-      return {
-        statusCode: HttpStatus.OK,
-        message: 'File uploaded successfully',
-        data: {
-          url: fileUrl,
-          size: file.size,
-          mimetype: file.mimetype,
-          fileName,
-        },
-      };
-    } catch (error) {
-      throw new BadRequestException('File upload failed: ' + error.message);
+    const fileName = `${type || 'image'}_${Date.now()}${extension}`;
+
+    const filePath = `${uploadFolder}/${fileName}`;
+
+    const upload = await this.fileService.uploadFile(file.buffer, filePath, file.mimetype);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'File uploaded successfully',
+      data: upload,
+    };
+  }
+
+  /**
+   * List file dari folder tertentu
+   */
+  @Public()
+  @Get('list')
+  async listFiles(@Query('folder') folder: string) {
+    if (!folder) {
+      throw new BadRequestException('Folder query parameter is required');
     }
+
+    const list = await this.fileService.listFiles(folder);
+
+    return {
+      statusCode: HttpStatus.OK,
+      data: list,
+    };
   }
 }

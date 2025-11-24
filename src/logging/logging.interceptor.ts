@@ -43,6 +43,9 @@ export class LoggingInterceptor implements NestInterceptor {
     if (request.url.startsWith('/log')) {
       return next.handle(); // Skip logging for /log* endpoints
     }
+    if (request.method.toLocaleLowerCase() == 'get'){
+      return next.handle()
+    }
     // --- END NEW ---
 
     const startTime = Date.now();

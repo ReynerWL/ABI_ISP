@@ -73,6 +73,7 @@ export class WhatsAppService {
           this.connected = true;
           // ✅ Start reminder schedulers after connection opens
           this.reminderService.startSchedulers(this.client);
+          this.menuHandler.GlobalClient(this.client)
         }
 
         if (connection === 'close') {

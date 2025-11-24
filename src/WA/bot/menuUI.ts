@@ -8,48 +8,79 @@ export class MenuUIService {
   private logger = new Logger('MenuUIService');
 
   /**
-   * Send subscription renewal reminder
+   * Kirim pengingat jatuh tempo langganan
    */
   async sendSubscriptionReminder(
     client: any,
     to: string,
     daysLeft: number,
-    uploadLink: string, // ✅ Add the upload link
+    link: string,
   ) {
     await client.sendMessage(to, {
-      text: `📅 Subscription Reminder\n\nYour subscription expires in ${daysLeft} day(s).\n\nTo avoid disconnection:\n1. Prepare your payment\n2. Upload proof using this link: ${uploadLink}\n\nYour service will remain active after successful verification.`,
+      text: `📅 Pengingat Langganan
+
+Langganan Anda akan berakhir dalam ${daysLeft} hari.
+
+Untuk menghindari pemutusan layanan:
+1. Siapkan pembayaran Anda
+2. Bayar di sini: ${link}
+
+Layanan Anda akan tetap aktif setelah pembayaran diverifikasi.`,
     });
   }
 
   /**
-   * Send service expired notice
+   * Kirim pemberitahuan layanan expired
    */
-  async sendServiceExpired(client: any, to: string, uploadLink: string) {
+  async sendServiceExpired(client: any, to: string, link: string) {
     await client.sendMessage(to, {
-      text: `⚠️ Service Suspended\n\nYour subscription has expired. Please renew immediately.\n\nUpload payment proof: ${uploadLink}\n\nYour service will be restored within 24 hours after verification.`,
+      text: `⚠️ Layanan Dinonaktifkan
+
+Langganan Anda telah berakhir. Mohon lakukan perpanjangan segera.
+
+Bayar di sini: ${link}
+
+Layanan Anda akan dipulihkan maksimal 24 jam setelah pembayaran diverifikasi.`,
     });
   }
 
   /**
-   * Send payment confirmation success
+   * Kirim pesan konfirmasi pembayaran berhasil
    */
   async sendPaymentSuccess(client: any, to: string, transactionId: string) {
     await client.sendMessage(to, {
-      text: `🎉 Payment Confirmed!\n\nTransaction ID: ${transactionId}\n\nYour service has been restored. Thank you for your payment!\n\nNeed help? Contact us anytime.`,
+      text: `🎉 Pembayaran Berhasil!
+
+ID Transaksi: ${transactionId}
+
+Layanan Anda telah aktif kembali. Terima kasih atas pembayaran Anda!
+
+Butuh bantuan? Hubungi kami kapan saja.`,
     });
   }
 
   /**
-   * Send payment rejection notice
+   * Kirim pesan penolakan pembayaran
    */
-  async sendPaymentRejected(client: any, to: string, reason: string, uploadLink: string) {
+  async sendPaymentRejected(
+    client: any,
+    to: string,
+    reason: string,
+    link: string,
+  ) {
     await client.sendMessage(to, {
-      text: `❌ Payment Rejected\n\nReason: ${reason}\n\nPlease resubmit a valid payment proof using this link: ${uploadLink}\n\nContact support if you need assistance.`,
+      text: `❌ Pembayaran Ditolak
+
+Alasan: ${reason}
+
+Silakan lakukan pembayaran ulang di sini: ${link}
+
+Jika membutuhkan bantuan, silakan hubungi tim support kami.`,
     });
   }
 
   /**
-   * Send account status summary (when triggered by admin/system)
+   * Kirim status akun (dipanggil admin/sistem)
    */
   async sendAccountStatus(
     client: any,
@@ -61,47 +92,81 @@ export class MenuUIService {
   ) {
     const statusMsg =
       status === UserStatus.AKTIF
-        ? '🟢 Active – Internet is working'
+        ? '🟢 Aktif – Internet berjalan normal'
         : status === UserStatus.NONAKTIF
-          ? '🔴 Expired – Payment overdue'
-          : '🟠 Blocked – Contact admin';
+          ? '🔴 Tidak Aktif – Pembayaran melewati jatuh tempo'
+          : '🟠 Diblokir – Silakan hubungi admin';
 
-    const due = dueDate ? dueDate.toLocaleDateString() : 'End of month';
+    const due = dueDate ? dueDate.toLocaleDateString() : 'Akhir bulan';
 
     await client.sendMessage(to, {
-      text: `📊 Account Status Update\n\nName: ${name}\nPackage: ${paket}\nStatus: ${statusMsg}\nRenewal Date: ${due}\n\nQuestions? Contact support.`,
+      text: `📊 Status Akun
+
+Nama: ${name}
+Paket: ${paket}
+Status: ${statusMsg}
+Jatuh Tempo: ${due}
+
+Ada pertanyaan? Silakan hubungi support.`,
     });
   }
 
   /**
-   * Send support contact info (when triggered by system)
+   * Kirim kontak support
    */
   async sendSupportContact(client: any, to: string) {
     await client.sendMessage(to, {
-      text: `📞 Need Help?\n\nContact our support team:\n\n📱 WhatsApp: wa.me/6281234567890\n📧 Email: support@yourisp.com\n🕐 Hours: Mon-Fri, 8 AM - 5 PM`,
+      text: `📞 Butuh Bantuan?
+
+Hubungi tim support kami:
+
+📱 WhatsApp: wa.me/6281234567890
+📧 Email: support@yourisp.com
+🕐 Jam Operasional: Senin–Jumat, 08.00–17.00`,
     });
   }
 
   /**
-   * Send welcome message (when user first registers, triggered by system)
+   * Kirim pesan selamat datang
    */
-  async sendWelcomeMessage(client: any, to: string, name: string, uploadLink: string) {
+  async sendWelcomeMessage(
+    client: any,
+    to: string,
+    name: string,
+    link: string,
+  ) {
     await client.sendMessage(to, {
-      text: `👋 Welcome, ${name}!\n\nThank you for choosing YourISP.\n\nTo activate your service:\n1. Make your payment\n2. Upload proof here: ${uploadLink}\n\nEnjoy fast internet!`,
+      text: `👋 Selamat Datang, ${name}!
+
+Terima kasih telah memilih layanan kami.
+
+Untuk mengaktifkan layanan Anda:
+1. Lakukan pembayaran
+2. Bayar di sini: ${link}
+
+Selamat menikmati internet cepat!`,
     });
   }
 
   /**
-   * Send payment reminder for overdue invoices
+   * Kirim pengingat pembayaran jatuh tempo
    */
   async sendOverduePaymentReminder(
     client: any,
     to: string,
     daysOverdue: number,
-    uploadLink: string,
+    link: string,
   ) {
     await client.sendMessage(to, {
-      text: `⚠️ Overdue Payment Alert\n\nYour payment is ${daysOverdue} day(s) overdue.\n\nTo prevent service interruption:\n1. Pay immediately\n2. Upload proof: ${uploadLink}\n\nAct now to avoid disconnection.`,
+      text: `⚠️ Peringatan Pembayaran Terlambat
+
+Pembayaran Anda terlambat ${daysOverdue} hari.
+
+Untuk menghindari pemutusan layanan:
+1. Segera lakukan pembayaran
+2. Bayar di sini: ${link}
+
+Mohon segera ditindaklanjuti.`,
     });
   }
 }

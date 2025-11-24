@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Subscription } from '#/subscription/entities/subscription.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import dayjs from 'dayjs';
+import { MenuHandlerService } from '#/WA/bot/menuHandler';
 
 @Injectable()
 export class PaymentService {
@@ -17,6 +18,7 @@ export class PaymentService {
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
     private dataSource: DataSource,
+    private menuHandlerSvc: MenuHandlerService
   ) {}
 
 async create(createPaymentDto: CreatePaymentDto) {
@@ -75,6 +77,7 @@ async create(createPaymentDto: CreatePaymentDto) {
     // Logic to reject a payment
     const payment = await this.dataSource.manager.findOne(Payment, {
       where: { id: paymentId },
+      relations: {user:true, paket:true, bank:true}
     });
 
     //throw error 404
@@ -104,6 +107,10 @@ async create(createPaymentDto: CreatePaymentDto) {
 
     await this.dataSource.manager.save(newPayment);
 
+    await this.menuHandlerSvc.sendPaymentRejected(
+      payment.user?.customerId, reason, payment.user?.id
+    )
+    
     return await this.dataSource.manager.findOne(Payment, {
       where: { id: payment.id },
       relations: { user: true },
@@ -204,6 +211,10 @@ if (latestSubscription !== null) {
     paidAt: new Date(),
     confirmedAt: new Date(),
   });
+
+  await this.menuHandlerSvc.sendPaymentConfirmed(
+    payment.user?.customerId, payment.id, payment.user?.id
+  )
 
   return await this.dataSource.manager.findOne(Payment, {
     where: { id: payment.id },
