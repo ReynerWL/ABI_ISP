@@ -10,7 +10,7 @@ export interface MinioStorageConfig {
 }
 
 export class MinioStorageService {
-  public client: Minio.Client;   // <-- dibuat public agar bisa diakses FileService
+  public client: Minio.Client; // <-- dibuat public agar bisa diakses FileService
   public config: MinioStorageConfig; // <-- juga dibuat public
 
   constructor(config: MinioStorageConfig) {
@@ -69,20 +69,17 @@ export class MinioStorageService {
   /**
    * List file dari folder tertentu
    */
-  listObjects(prefix: string): Promise<string[]> {
+  async listObjects(prefix: string): Promise<string[]> {
     return new Promise((resolve, reject) => {
       const objects: string[] = [];
 
       const stream = this.client.listObjects(
         this.config.bucket,
         prefix.endsWith('/') ? prefix : `${prefix}/`,
-        true, // recursive
+        true,
       );
 
-      stream.on('data', (obj) => {
-        objects.push(obj.name);
-      });
-
+      stream.on('data', (obj) => objects.push(obj.name));
       stream.on('end', () => resolve(objects));
       stream.on('error', (err) => reject(err));
     });
@@ -94,5 +91,13 @@ export class MinioStorageService {
   getFileUrl(key: string): string {
     const protocol = this.config.useSSL ? 'https://' : 'http://';
     return `${protocol}${this.config.endPoint}:${this.config.port}/${this.config.bucket}/${key}`;
+  }
+
+  async deleteFile(filePath: string): Promise<void> {
+    try {
+      await this.client.removeObject(this.config.bucket, filePath);
+    } catch (error) {
+      throw new Error(`Gagal menghapus file: ${error.message}`);
+    }
   }
 }

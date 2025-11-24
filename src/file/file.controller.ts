@@ -10,6 +10,7 @@ import {
   Body,
   Get,
   Query,
+  Delete,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Public } from '#/auth/public.decorator';
@@ -73,6 +74,24 @@ export class FileController {
     return {
       statusCode: HttpStatus.OK,
       data: list,
+    };
+  }
+
+  @Delete('delete')
+  async deleteFile(
+    @Query('folder') folder: string,
+    @Query('filename') filename: string,
+  ) {
+    if (!folder || !filename) {
+      throw new BadRequestException('folder dan filename wajib diisi');
+    }
+
+    const result = await this.fileService.deleteFile(folder, filename);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'File berhasil dihapus',
+      data: result,
     };
   }
 }
