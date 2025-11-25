@@ -10,7 +10,7 @@ import { MinioStorageService } from './minio_storage';
 @Injectable()
 export class FileService {
   constructor(private readonly minioService: MinioStorageService) {}
-  private readonly allowedFolders = ['ktp', 'payment', 'profile', 'misc'];
+  private readonly allowedFolders = ['KTP', 'Bukti_Pembayaran', 'Paket'];
 
   /**
    * Upload file ke MinIO
@@ -34,10 +34,16 @@ export class FileService {
   async listFiles(prefix: string): Promise<string[]> {
     return new Promise((resolve, reject) => {
       const objects: string[] = [];
+      
+      if (prefix == '.') {
+        prefix = ''
+      }else{
+        prefix = `${prefix}/`
+      }
 
       const stream = this.minioService.client.listObjects(
         this.minioService.config.bucket,
-        `${prefix}/`,
+        prefix,
         true, // recursive
       );
 

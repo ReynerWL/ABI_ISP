@@ -9,6 +9,7 @@ import {
   Query,
   HttpStatus,
   ParseUUIDPipe,
+  Put,
 } from '@nestjs/common';
 import { PaketService } from './paket.service';
 import { CreatePaketDto } from './dto/create-paket.dto';
@@ -106,7 +107,7 @@ export class PaketController {
     };
   }
 
-  @Patch(':id')
+  @Put(':id')
   @Roles(Role.ADMIN)
   @ApiOkResponse({
     description: 'Sukses mengedit data paket!',
