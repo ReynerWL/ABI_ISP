@@ -42,8 +42,13 @@ export class BankService {
     const qb = this.bankRepository.createQueryBuilder('bank');
 
     if (query) {
-      qb.andWhere('bank.bank_name LIKE :query', { query: `%${query}%` });
+      qb.andWhere(
+        `(LOWER(bank.bank_name) LIKE LOWER(:query) 
+        OR LOWER(bank.bank_number) LIKE LOWER(:query))`,
+        { query: `%${query}%` },
+      );
     }
+
     qb.skip((page - 1) * limit).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
