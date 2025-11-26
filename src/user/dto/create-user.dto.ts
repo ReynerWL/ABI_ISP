@@ -67,9 +67,6 @@ export class CreateUserDto {
 
 export class PelangganLamaDto {
   @Optional()
-  buktipembayaran: string;
-
-  @Optional()
   start_date: Date;
 
   @Optional()
