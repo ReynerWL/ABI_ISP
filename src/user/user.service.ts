@@ -18,19 +18,24 @@ import { Paket } from '#/paket/entities/paket.entity';
 import { Bank } from '#/bank/entities/bank.entity';
 import { PaginationDto } from '#/utils/pagination.dto';
 import { logger } from 'handlebars';
+import { Subscription } from '#/subscription/entities/subscription.entity';
 
 @Injectable()
 export class UserService {
   constructor(
-    private dataSource: DataSource, 
+    private dataSource: DataSource,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-      return await this.dataSource.transaction(async (manager) => {
+    return await this.dataSource.transaction(async (manager) => {
       const userRepo = manager.getRepository(User);
       const roleRepo = manager.getRepository(Role);
+      const paketRepo = manager.getRepository(Paket);
+      const bankRepo = manager.getRepository(Bank);
+      const paymentRepo = manager.getRepository(Payment);
+      const subsRepo = manager.getRepository(Subscription);
 
       if (createUserDto.email) {
         const existingUser = await userRepo.findOne({
@@ -62,7 +67,6 @@ export class UserService {
         }
       }
 
-      
       if (createUserDto.role == 'ADMIN' || createUserDto.role == 'SUPERADMIN') {
         throw new HttpException(
           {
@@ -72,9 +76,15 @@ export class UserService {
           HttpStatus.FORBIDDEN,
         );
       }
-      
+
       const role = await roleRepo.findOneOrFail({
         where: { name: ILike(createUserDto.role) },
+      });
+      const paket = await paketRepo.findOneOrFail({
+        where: { id: createUserDto.paketsId },
+      });
+      const bank = await bankRepo.findOneOrFail({
+        where: { id: createUserDto.bankId },
       });
 
       const data = new User();
@@ -89,6 +99,12 @@ export class UserService {
       data.status = createUserDto.status;
       data.priority = createUserDto.priority;
       data.ip_address = createUserDto.ip_address;
+      data.paket = paket;
+      data.provinsi = createUserDto.provinsi;
+      data.kota = createUserDto.kota;
+      data.kecamatan = createUserDto.kecamatan;
+      data.kelurahan = createUserDto.kelurahan;
+      data.birth_date = createUserDto.birth_date;
       data.paket = await manager.getRepository(Paket).findOneOrFail({
         where: { id: createUserDto.paketsId },
       });
@@ -101,11 +117,34 @@ export class UserService {
       const sequential = userCount.toString().padStart(4, '0');
       data.customerId = `${sequential}${year}${month}${day}`;
 
-      const savedUser = await userRepo.save(data); 
+      const savedUser = await userRepo.save(data);
+
+      if (createUserDto.is_pelanggan_lama == true) {
+        const payment = await paymentRepo.save({
+          user: savedUser,
+          paket: paket,
+          bank: bank,
+          buktiPembayaran: createUserDto.bukti_pembayaran,
+          status: 'CONFIRMED',
+          start_date: createUserDto.pelanggan_lama.start_date,
+          due_date: createUserDto.pelanggan_lama.due_date,
+          paidAt: createUserDto.pelanggan_lama.paid_at || new Date(),
+          confirmedAt: new Date(),
+          price: paket.price,
+        });
+
+        await subsRepo.save({
+          banks: bank,
+          paket: paket,
+          user: savedUser,
+          start_date: payment.start_date,
+          due_date: payment.due_date,
+        });
+      }
 
       const userWithRelations = await userRepo.findOne({
-         where: { id: savedUser.id },
-         relations: ['role'] 
+        where: { id: savedUser.id },
+        relations: {role:true, subscription: true},
       });
 
       return {
@@ -143,7 +182,7 @@ export class UserService {
       }
 
       const role = await roleRepo.findOneOrFail({
-        where: { name: ILike(`user`) }, 
+        where: { name: ILike(`user`) },
       });
 
       const data = new User();
@@ -163,7 +202,7 @@ export class UserService {
       data.role = role;
       data.paket = await paketRepo.findOneOrFail({
         where: { id: registerDto.payment.paketId },
-      }); 
+      });
 
       const userCount = (await userRepo.count()) + 1;
       const date = new Date();
@@ -182,14 +221,14 @@ export class UserService {
       const paket = await paketRepo.findOneOrFail({
         where: { id: registerDto.payment.paketId },
       });
-      payment.paket = paket
-      payment.bank = bank ?? undefined; 
-      payment.user = savedUser; 
+      payment.paket = paket;
+      payment.bank = bank ?? undefined;
+      payment.user = savedUser;
       payment.price = paket.price;
       payment.buktiPembayaran = registerDto.payment.buktiPembayaran;
       payment.status = 'PENDING';
 
-      const savedPayment = await paymentRepo.save(payment); 
+      const savedPayment = await paymentRepo.save(payment);
 
       const userWithRelations = await userRepo.findOne({
         where: { id: savedUser.id },
@@ -211,7 +250,7 @@ export class UserService {
 
   async createAdmin(createAdminDto: CreateAdminDto, roles: string) {
     console.log(roles);
-    
+
     if (roles != 'SUPERADMIN') {
       throw new HttpException(
         {
@@ -239,8 +278,8 @@ export class UserService {
     const savedUser = await this.userRepository.save(data);
 
     const userWithRelations = await this.userRepository.findOne({
-       where: { id: savedUser.id },
-       relations: ['role'] 
+      where: { id: savedUser.id },
+      relations: ['role'],
     });
 
     return userWithRelations || savedUser; // Return saved user
@@ -260,71 +299,71 @@ export class UserService {
     const { page, limit } = paginationDto;
     try {
       const qb = this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.role', 'role')
-      .leftJoinAndSelect('user.paket', 'paket');
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.role', 'role')
+        .leftJoinAndSelect('user.paket', 'paket');
 
-    if (status) {
-      qb.andWhere('user.status = :status', { status });
-    }
-
-    if (search) {
-      qb.andWhere(
-        '(user.name ILIKE :search OR user.email ILIKE :search OR user.customerId ILIKE :search)',
-        { search: `%${search}%` },
-      );
-    }
-
-    if (paket_speed) {
-      const pakets = paket_speed.split(',').map(p => p.trim());
-      qb.andWhere('paket.speed IN (:...pakets)', { pakets });
-    }
-
-    if (paket) {
-      if (paket.toLowerCase() === 'asc') {
-        qb.addOrderBy('paket.speed', 'ASC');
-      } else if (paket.toLowerCase() === 'desc') {
-        qb.addOrderBy('paket.speed', 'DESC');
+      if (status) {
+        qb.andWhere('user.status = :status', { status });
       }
-    }
 
-    role = role.toLocaleUpperCase()
-    if (role) {
-      qb.andWhere('role.name = :role', { role });
-    }
-
-    if (created_at) {
-      if (created_at.toLowerCase() == 'asc') {
-        qb.addOrderBy('user.createdAt', 'ASC');
-      } else if (created_at.toLowerCase() == 'desc') {
-        qb.addOrderBy('user.createdAt', 'DESC');
+      if (search) {
+        qb.andWhere(
+          '(user.name ILIKE :search OR user.email ILIKE :search OR user.customerId ILIKE :search)',
+          { search: `%${search}%` },
+        );
       }
-    }
 
-    if (startDate && endDate) {
-      qb.andWhere('user.createdAt BETWEEN :startDate AND :endDate', {
-        startDate,
-        endDate,
-      });
-    }
+      if (paket_speed) {
+        const pakets = paket_speed.split(',').map((p) => p.trim());
+        qb.andWhere('paket.speed IN (:...pakets)', { pakets });
+      }
 
-    if (paginationDto) {
-      qb.skip((page - 1) * limit).take(limit);
-    }
+      if (paket) {
+        if (paket.toLowerCase() === 'asc') {
+          qb.addOrderBy('paket.speed', 'ASC');
+        } else if (paket.toLowerCase() === 'desc') {
+          qb.addOrderBy('paket.speed', 'DESC');
+        }
+      }
 
-    const [data, total] = await qb.getManyAndCount();
+      role = role.toLocaleUpperCase();
+      if (role) {
+        qb.andWhere('role.name = :role', { role });
+      }
 
-    const pagination = {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+      if (created_at) {
+        if (created_at.toLowerCase() == 'asc') {
+          qb.addOrderBy('user.createdAt', 'ASC');
+        } else if (created_at.toLowerCase() == 'desc') {
+          qb.addOrderBy('user.createdAt', 'DESC');
+        }
+      }
 
-    return {
-      data,
-      pagination,
-    };
+      if (startDate && endDate) {
+        qb.andWhere('user.createdAt BETWEEN :startDate AND :endDate', {
+          startDate,
+          endDate,
+        });
+      }
+
+      if (paginationDto) {
+        qb.skip((page - 1) * limit).take(limit);
+      }
+
+      const [data, total] = await qb.getManyAndCount();
+
+      const pagination = {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+
+      return {
+        data,
+        pagination,
+      };
     } catch (error) {
       throw new HttpException(
         {
@@ -337,9 +376,14 @@ export class UserService {
   }
 
   async findOne(id: string) {
-     const user = await this.userRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: { id },
-      relations: {role: true, paket: true, subscription: {paket: true}, payments: {paket: true, bank: true}},
+      relations: {
+        role: true,
+        paket: true,
+        subscription: { paket: true },
+        payments: { paket: true, bank: true },
+      },
     });
 
     if (!user) {
@@ -395,8 +439,8 @@ export class UserService {
 
   async findByCustomerId(customerId: string) {
     const user = await this.userRepository.findOne({
-      where: { id: customerId, role: { name: 'CUSTOMER' } }, 
-      relations: ['role', 'payment', 'paket', 'subscription'], 
+      where: { id: customerId, role: { name: 'CUSTOMER' } },
+      relations: ['role', 'payment', 'paket', 'subscription'],
     });
     if (!user) {
       throw new HttpException(
@@ -438,7 +482,7 @@ export class UserService {
       const paketRepo = manager.getRepository(Paket);
       const paymentRepo = manager.getRepository(Payment);
 
-      const user = await this.findOne(id)
+      const user = await this.findOne(id);
 
       if (!user) {
         throw new HttpException(
@@ -465,7 +509,10 @@ export class UserService {
         }
       }
 
-      if (updateUserDto.phone_number && updateUserDto.phone_number !== user.phone_number) {
+      if (
+        updateUserDto.phone_number &&
+        updateUserDto.phone_number !== user.phone_number
+      ) {
         const existingUser = await userRepo.findOne({
           where: { phone_number: updateUserDto.phone_number },
         });
@@ -491,19 +538,19 @@ export class UserService {
       updateData.paket = user.paket;
       updateData.buktiPemasangan = updateUserDto.buktiPemasangan;
       updateData.tanggalPemasangan = updateUserDto.tanggalPemasangan;
-      
+
       // Handle password update if provided
       if (updateUserDto.password) {
-         user.salt = randomUUID();
-         user.password = await hashPassword(updateUserDto.password, user.salt);
-         updateData.salt = user.salt;
-         updateData.password = user.password;
+        user.salt = randomUUID();
+        user.password = await hashPassword(updateUserDto.password, user.salt);
+        updateData.salt = user.salt;
+        updateData.password = user.password;
       }
 
-      await this.userRepository.update(user.id, updateData)
+      await this.userRepository.update(user.id, updateData);
 
       let createdPayment: Payment | null = null;
-      // Handle paket change and create pending payment if paketId is provided  
+      // Handle paket change and create pending payment if paketId is provided
       if (updateUserDto.paketsId && updateUserDto.paketsId !== user.paket?.id) {
         const newPaket = await paketRepo.findOne({
           where: { id: updateUserDto.paketsId },
@@ -521,7 +568,7 @@ export class UserService {
         const payment = new Payment();
         payment.user = user;
         payment.paket = newPaket;
-        payment.price = newPaket.price; 
+        payment.price = newPaket.price;
         payment.status = 'PENDING';
         payment.buktiPembayaran = updateUserDto.buktiPembayaran || '';
 
@@ -533,18 +580,18 @@ export class UserService {
         if (existingPendingPayment) {
           await paymentRepo.remove(existingPendingPayment);
         }
-        
+
         createdPayment = await paymentRepo.save(payment);
       }
 
       const userWithRelations = await userRepo.findOne({
         where: { id: user.id },
-        relations: {role: true, paket: true}, 
+        relations: { role: true, paket: true },
       });
 
       return {
         data: userWithRelations,
-        ...(createdPayment && { newPayment: createdPayment }), 
+        ...(createdPayment && { newPayment: createdPayment }),
         message: createdPayment
           ? `User updated successfully. A new pending payment (#${createdPayment.id}) has been created for the requested package change.`
           : 'User updated successfully.',
@@ -575,7 +622,8 @@ export class UserService {
       );
     }
 
-    user.status = user.status === UserStatus.AKTIF ? UserStatus.NONAKTIF : UserStatus.AKTIF;
+    user.status =
+      user.status === UserStatus.AKTIF ? UserStatus.NONAKTIF : UserStatus.AKTIF;
 
     const savedUser = await this.userRepository.save(user);
 

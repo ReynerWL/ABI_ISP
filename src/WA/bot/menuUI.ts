@@ -9,6 +9,8 @@ export class MenuUIService {
 
   /**
    * Kirim pengingat jatuh tempo langganan
+   * @param client whatsapp-web.js Client
+   * @param to target jid (mis. 62812xxxx@c.us)
    */
   async sendSubscriptionReminder(
     client: any,
@@ -16,8 +18,7 @@ export class MenuUIService {
     daysLeft: number,
     link: string,
   ) {
-    await client.sendMessage(to, {
-      text: `📅 Pengingat Langganan
+    const text = `📅 Pengingat Langganan
 
 Langganan Anda akan berakhir dalam ${daysLeft} hari.
 
@@ -25,38 +26,57 @@ Untuk menghindari pemutusan layanan:
 1. Siapkan pembayaran Anda
 2. Bayar di sini: ${link}
 
-Layanan Anda akan tetap aktif setelah pembayaran diverifikasi.`,
-    });
+Layanan Anda akan tetap aktif setelah pembayaran diverifikasi.`;
+
+    try {
+      await client.sendMessage(to, text);
+    } catch (err) {
+      this.logger.error(
+        'Gagal kirim SubscriptionReminder',
+        err?.message ?? err,
+      );
+      throw err;
+    }
   }
 
   /**
    * Kirim pemberitahuan layanan expired
    */
   async sendServiceExpired(client: any, to: string, link: string) {
-    await client.sendMessage(to, {
-      text: `⚠️ Layanan Dinonaktifkan
+    const text = `⚠️ Layanan Dinonaktifkan
 
 Langganan Anda telah berakhir. Mohon lakukan perpanjangan segera.
 
 Bayar di sini: ${link}
 
-Layanan Anda akan dipulihkan maksimal 24 jam setelah pembayaran diverifikasi.`,
-    });
+Layanan Anda akan dipulihkan maksimal 24 jam setelah pembayaran diverifikasi.`;
+
+    try {
+      await client.sendMessage(to, text);
+    } catch (err) {
+      this.logger.error('Gagal kirim ServiceExpired', err?.message ?? err);
+      throw err;
+    }
   }
 
   /**
    * Kirim pesan konfirmasi pembayaran berhasil
    */
   async sendPaymentSuccess(client: any, to: string, transactionId: string) {
-    await client.sendMessage(to, {
-      text: `🎉 Pembayaran Berhasil!
+    const text = `🎉 Pembayaran Berhasil!
 
 ID Transaksi: ${transactionId}
 
 Layanan Anda telah aktif kembali. Terima kasih atas pembayaran Anda!
 
-Butuh bantuan? Hubungi kami kapan saja.`,
-    });
+Butuh bantuan? Hubungi kami kapan saja.`;
+
+    try {
+      await client.sendMessage(to, text);
+    } catch (err) {
+      this.logger.error('Gagal kirim PaymentSuccess', err?.message ?? err);
+      throw err;
+    }
   }
 
   /**
@@ -68,15 +88,20 @@ Butuh bantuan? Hubungi kami kapan saja.`,
     reason: string,
     link: string,
   ) {
-    await client.sendMessage(to, {
-      text: `❌ Pembayaran Ditolak
+    const text = `❌ Pembayaran Ditolak
 
 Alasan: ${reason}
 
 Silakan lakukan pembayaran ulang di sini: ${link}
 
-Jika membutuhkan bantuan, silakan hubungi tim support kami.`,
-    });
+Jika membutuhkan bantuan, silakan hubungi tim support kami.`;
+
+    try {
+      await client.sendMessage(to, text);
+    } catch (err) {
+      this.logger.error('Gagal kirim PaymentRejected', err?.message ?? err);
+      throw err;
+    }
   }
 
   /**
@@ -99,31 +124,41 @@ Jika membutuhkan bantuan, silakan hubungi tim support kami.`,
 
     const due = dueDate ? dueDate.toLocaleDateString() : 'Akhir bulan';
 
-    await client.sendMessage(to, {
-      text: `📊 Status Akun
+    const text = `📊 Status Akun
 
 Nama: ${name}
 Paket: ${paket}
 Status: ${statusMsg}
 Jatuh Tempo: ${due}
 
-Ada pertanyaan? Silakan hubungi support.`,
-    });
+Ada pertanyaan? Silakan hubungi support.`;
+
+    try {
+      await client.sendMessage(to, text);
+    } catch (err) {
+      this.logger.error('Gagal kirim AccountStatus', err?.message ?? err);
+      throw err;
+    }
   }
 
   /**
    * Kirim kontak support
    */
   async sendSupportContact(client: any, to: string) {
-    await client.sendMessage(to, {
-      text: `📞 Butuh Bantuan?
+    const text = `📞 Butuh Bantuan?
 
 Hubungi tim support kami:
 
 📱 WhatsApp: wa.me/6281234567890
 📧 Email: support@yourisp.com
-🕐 Jam Operasional: Senin–Jumat, 08.00–17.00`,
-    });
+🕐 Jam Operasional: Senin–Jumat, 08.00–17.00`;
+
+    try {
+      await client.sendMessage(to, text);
+    } catch (err) {
+      this.logger.error('Gagal kirim SupportContact', err?.message ?? err);
+      throw err;
+    }
   }
 
   /**
@@ -135,8 +170,7 @@ Hubungi tim support kami:
     name: string,
     link: string,
   ) {
-    await client.sendMessage(to, {
-      text: `👋 Selamat Datang, ${name}!
+    const text = `👋 Selamat Datang, ${name}!
 
 Terima kasih telah memilih layanan kami.
 
@@ -144,8 +178,14 @@ Untuk mengaktifkan layanan Anda:
 1. Lakukan pembayaran
 2. Bayar di sini: ${link}
 
-Selamat menikmati internet cepat!`,
-    });
+Selamat menikmati internet cepat!`;
+
+    try {
+      await client.sendMessage(to, text);
+    } catch (err) {
+      this.logger.error('Gagal kirim WelcomeMessage', err?.message ?? err);
+      throw err;
+    }
   }
 
   /**
@@ -157,8 +197,7 @@ Selamat menikmati internet cepat!`,
     daysOverdue: number,
     link: string,
   ) {
-    await client.sendMessage(to, {
-      text: `⚠️ Peringatan Pembayaran Terlambat
+    const text = `⚠️ Peringatan Pembayaran Terlambat
 
 Pembayaran Anda terlambat ${daysOverdue} hari.
 
@@ -166,7 +205,16 @@ Untuk menghindari pemutusan layanan:
 1. Segera lakukan pembayaran
 2. Bayar di sini: ${link}
 
-Mohon segera ditindaklanjuti.`,
-    });
+Mohon segera ditindaklanjuti.`;
+
+    try {
+      await client.sendMessage(to, text);
+    } catch (err) {
+      this.logger.error(
+        'Gagal kirim OverduePaymentReminder',
+        err?.message ?? err,
+      );
+      throw err;
+    }
   }
 }

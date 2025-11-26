@@ -39,6 +39,6 @@ coverage
 k8s/**/secret.yaml
 
 /whatsapp-session
-
+/.wwebjs*
 .git
 

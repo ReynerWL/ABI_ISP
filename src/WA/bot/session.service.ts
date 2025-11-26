@@ -1,52 +1,67 @@
 // src/WA/bot/session.service.ts
-import { Injectable } from '@nestjs/common';
-import { useMultiFileAuthState, Browsers } from '@whiskeysockets/baileys';
-import { promises as fs } from 'fs';
-import { Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const SESSION_DIR = './whatsapp-session'; // Directory (not file)
+const SESSION_DIRNAME = 'whatsapp-session';
 
 @Injectable()
 export class SessionService {
   private logger = new Logger('SessionService');
+  private sessionPath = path.join(process.cwd(), SESSION_DIRNAME);
 
-  async loadAuthState() {
-    try {
-      // Ensure session directory exists
-      await this.ensureDir(SESSION_DIR);
-
-      // ✅ This handles everything: keys, creds, encryption, etc.
-      const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
-
-      return {
-        state,
-        saveState: async () => {
-          await saveCreds(); // Save both creds and keys
-          this.logger.debug(`🔐 Session saved to ${SESSION_DIR}`);
-        },
-      };
-    } catch (error) {
-      this.logger.error('Failed to load multi-file auth state', error.stack);
-      throw error;
+  ensureDir() {
+    if (!fs.existsSync(this.sessionPath)) {
+      fs.mkdirSync(this.sessionPath, { recursive: true });
+      this.logger.log(`📁 Created session directory: ${this.sessionPath}`);
     }
   }
 
-  private async ensureDir(path: string) {
-    try {
-      await fs.access(path);
-    } catch {
-      await fs.mkdir(path, { recursive: true });
-      this.logger.log(`📁 Created session directory: ${path}`);
-    }
+  getSessionPath() {
+    this.ensureDir();
+    return this.sessionPath;
   }
 
-  async clearAuthState() {
-    const fs = await import('fs').then((m) => m.promises);
-    try {
-      await fs.rm(SESSION_DIR, { recursive: true, force: true });
-      this.logger.log('🗑️ Session directory deleted');
-    } catch (error) {
-      this.logger.error('Failed to delete session', error);
+  /**
+   * Reset session completely (hapus folder session dan buat ulang)
+   */
+  // src/WA/bot/session.service.ts (clearAuthState)
+  async clearAuthState(): Promise<void> {
+    const tries = 6;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    const attemptRemove = () => {
+      // Use rmSync with force, but wrap in try to return error if resource busy
+      try {
+        if (fs.existsSync(this.sessionPath)) {
+          fs.rmSync(this.sessionPath, { recursive: true, force: true });
+        }
+        // recreate folder so LocalAuth has a place to write
+        fs.mkdirSync(this.sessionPath, { recursive: true });
+        return true;
+      } catch (e) {
+        // If EBUSY or EPERM, caller will retry
+        throw e;
+      }
+    };
+
+    for (let i = 0; i < tries; i++) {
+      try {
+        attemptRemove();
+        this.logger.log(`🧹 Session directory cleared: ${this.sessionPath}`);
+        return;
+      } catch (err) {
+        const msg = (err as Error).message ?? err;
+        this.logger.warn(`clearAuthState attempt ${i + 1} failed: ${msg}`);
+        // small backoff
+        await sleep(300 + i * 200);
+        continue;
+      }
     }
+
+    // Last resort: throw, caller can decide to force kill processes
+    throw new Error(
+      `Failed to clear session at ${this.sessionPath} after ${tries} attempts`,
+    );
   }
 }

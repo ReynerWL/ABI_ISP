@@ -14,104 +14,118 @@ export class ReminderService {
   private whatsappClient: any;
 
   constructor(
-    private menuHandler: MenuHandlerService, // ✅ Inject MenuHandlerService
+    private menuHandler: MenuHandlerService,
     private dataSource: DataSource,
-    private jwtService: JwtService,         // ✅ For secure links
-    private mailservice: MailService
+    private jwtService: JwtService,
+    private mailservice: MailService,
   ) {}
 
   /**
-   * Called by main app to set WhatsApp client
+   * Dipanggil oleh WhatsAppService setelah client ready.
    */
   startSchedulers(client: any) {
     this.whatsappClient = client;
   }
 
   /**
-   * Run every day at 9 AM
-   * Send reminders and check for expired subscriptions
+   * Cron: Setiap hari jam 9 pagi
    */
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async handleDailyUserReminders() {
     if (!this.whatsappClient) {
-      this.logger.warn('WhatsApp client not available. Skipping daily reminders.');
+      this.logger.warn(
+        'WhatsApp client not available. Skipping daily reminders.',
+      );
       return;
     }
 
-    this.logger.log('⏰ Starting daily reminder checks...');
+    this.logger.log('⏰ Running daily reminders...');
 
     try {
-      // 1. Send subscription renewal reminders
       await this.sendSubscriptionReminders();
-
-      // 2. Check for expired subscriptions
       await this.checkExpiredSubscriptions();
 
-      this.logger.log('✅ Daily reminder checks completed successfully.');
+      this.logger.log('✅ Daily reminder checks finished.');
     } catch (error) {
-      this.logger.error('💥 Failed to run daily reminders', error.stack);
+      this.logger.error('💥 Daily reminders failed', error.stack);
     }
   }
 
-  /**
-   * Send renewal reminders to users whose subscription is about to expire
-   */
+  // ----------------------------------------------------------
+  // Helper: Convert nomor → JID
+  // ----------------------------------------------------------
+  private toJid(phone: string): string {
+    phone = phone.replace(/\D/g, '');
+    if (!phone.endsWith('@c.us')) {
+      return `${phone}@c.us`;
+    }
+    return phone;
+  }
+
+  // ----------------------------------------------------------
+  // Kirim pengingat jatuh tempo
+  // ----------------------------------------------------------
   private async sendSubscriptionReminders() {
     const today = new Date();
-    
-    // Find users whose subscription expires in 7 days or 3 days
+
     const reminderDates = [
-      new Date(today).setDate(today.getDate() + 7), // 7 days from now
-      new Date(today).setDate(today.getDate() + 3), // 3 days from now
+      new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // +7 hari
+      new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000), // +3 hari
     ];
 
     for (const dueDate of reminderDates) {
-      const usersNeedingReminder = await this.dataSource.getRepository('User').find({
+      const users = await this.dataSource.getRepository('User').find({
         where: {
-          status: UserStatus.AKTIF, // Only active users
+          status: UserStatus.AKTIF,
           subscription: {
-            dueDate: new Date(dueDate), // Exactly on the due date
+            dueDate: dueDate,
           },
         },
-        relations: ['subscription'], // Load subscription relation
+        relations: ['subscription'],
       });
 
-      const daysLeft = Math.ceil((new Date(dueDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const daysLeft = Math.ceil(
+        (dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+      );
 
-      for (const user of usersNeedingReminder) {
+      for (const user of users) {
         try {
-          // ✅ Send reminder via WhatsApp using MenuHandlerService
+          const jid = this.toJid(user.phoneNumber);
+
+          // Kirim WA melalui MenuHandler
           await this.menuHandler.sendSubscriptionReminder(
             this.whatsappClient,
-            `${user.phoneNumber}@c.us`, // Convert to WhatsApp JID
+            jid,
             daysLeft,
-            user.id, // Pass user ID for token generation inside menuHandler if needed
+            user.id,
           );
 
-          await this.mailservice.sendSubscriptionReminder(
-            user.id, new Date(dueDate)
-          )
+          await this.mailservice.sendSubscriptionReminder(user.id, dueDate);
 
-          this.logger.log(`📅 Sent ${daysLeft}-day reminder to ${user.phoneNumber} (User ID: ${user.id})`);
+          this.logger.log(
+            `📅 Sent ${daysLeft}-day reminder to ${user.phoneNumber} (ID: ${user.id})`,
+          );
         } catch (error) {
-          this.logger.error(`Failed to send reminder to ${user.phoneNumber}`, error.stack);
+          this.logger.error(
+            `Failed to send reminder to ${user.phoneNumber}`,
+            error.stack,
+          );
         }
       }
     }
   }
 
-  /**
-   * Check for expired subscriptions and send 'service expired' notice
-   */
+  // ----------------------------------------------------------
+  // Cek expired subscription
+  // ----------------------------------------------------------
   private async checkExpiredSubscriptions() {
     const now = new Date();
 
-    // Find users whose subscription has expired (dueDate < now) and are still marked as ACTIVE
     const expiredUsers = await this.dataSource.getRepository('User').find({
       where: {
-        status: UserStatus.AKTIF, // Still marked active
+        status: UserStatus.AKTIF,
         subscription: {
-          dueDate: LessThan(now), // But due date has passed
+          dueDate: LessThan(now),
         },
       },
       relations: ['subscription'],
@@ -119,44 +133,47 @@ export class ReminderService {
 
     for (const user of expiredUsers) {
       try {
-        // ✅ Update user status to EXPIRED in the database
+        // Update status database
         await this.dataSource.getRepository('User').update(user.id, {
           status: UserStatus.NONAKTIF,
         });
 
-        // ✅ Generate secure upload link for renewal
-        const uploadLink = `https://mbinet.click/`;
+        const jid = this.toJid(user.phoneNumber);
 
-        // ✅ Send 'service expired' notice via WhatsApp
+        // Kirim WA expired notice
         await this.menuHandler.sendServiceExpired(
           this.whatsappClient,
-          `${user.phoneNumber}@c.us`,
-          user.id, // Pass user ID if needed inside menuHandler
+          jid,
+          user.id,
         );
 
-        await this.mailservice.sendExpired(
-          user.id, now
-        )
+        await this.mailservice.sendExpired(user.id, now);
 
-        this.logger.log(`🔴 Marked subscription as expired for ${user.phoneNumber} (User ID: ${user.id})`);
+        this.logger.log(
+          `🔴 Marked expired & notified ${user.phoneNumber} (ID: ${user.id})`,
+        );
       } catch (error) {
-        this.logger.error(`Failed to process expired subscription for ${user.phoneNumber}`, error.stack);
+        this.logger.error(
+          `Failed to process expired user ${user.phoneNumber}`,
+          error.stack,
+        );
       }
     }
   }
 
   /**
-   * ✅ Generate a secure JWT token for payment upload
+   * (Masih opsional kalau mau dipakai lagi)
+   * Generate token upload secure
    */
   private async generateUploadToken(userId: string): Promise<string> {
     const payload = {
       sub: userId,
       action: 'upload_payment_proof',
-      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // Expires in 24 hours
+      exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
     };
 
     return this.jwtService.sign(payload, {
-      secret: process.env.JWT_UPLOAD_SECRET!, // Use a strong secret from environment
+      secret: process.env.JWT_UPLOAD_SECRET!,
       algorithm: 'HS256',
     });
   }

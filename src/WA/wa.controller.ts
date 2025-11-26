@@ -1,5 +1,5 @@
 // src/WA/wa.controller.ts
-import { Controller, Get, Post, HttpCode, Query } from '@nestjs/common';
+import { Controller, Get, Post, HttpCode, Body, Query, BadRequestException } from '@nestjs/common';
 import { WhatsAppService } from './bot/wa.service';
 import { Public } from '#/auth/public.decorator';
 import { SkipLogging } from '#/logging/skip-logging.decorator';
@@ -8,34 +8,46 @@ import { SkipLogging } from '#/logging/skip-logging.decorator';
 export class WhatsAppController {
   constructor(private waService: WhatsAppService) {}
 
+  @Public()
   @Get('qr')
+  @SkipLogging()
   getQrCode() {
-  const base64DataUrl = this.waService.getQrCode();
-  if (base64DataUrl) {
-     return { qrCodeDataUrl: base64DataUrl }; // e.g., { qrCodeDataUrl: "data:image/png;base64,iVBOR..." }
-  } else {
-     return { message: 'No QR code available. Bot might be connected or disconnected.' };
+    const dataUrl = this.waService.getQrCode();
+    if (dataUrl) return { qrCodeDataUrl: dataUrl };
+    return { qrCodeDataUrl: null, message: 'No QR available (maybe connected already).' };
   }
-}
 
+  @Public()
   @Get('status')
   @SkipLogging()
   getStatus() {
     return this.waService.getStatus();
   }
 
+  @Public()
   @Post('logout')
   @HttpCode(200)
   async logout() {
     await this.waService.logout();
-    return { message: 'Logged out. Scan QR to reconnect.' };
+    return { message: 'Logged out and session cleared.' };
   }
 
+  @Public()
+  @Post('restart')
+  @HttpCode(200)
+  async restart() {
+    await this.waService.restart();
+    return { message: 'Restart initiated.' };
+  }
 
-  private normalizePhone(phone: string): string | null {
-    const cleaned = phone?.replace(/\D/g, '');
-    // Basic validation: at least 8 digits, starts with valid country code
-    if (!cleaned || cleaned.length < 8) return null;
-    return cleaned;
+  // example endpoint to send message via bot
+  @Public()
+  @Post('send')
+  @HttpCode(200)
+  async send(@Body() body: { to: string; message: string }) {
+    const { to, message } = body;
+    if (!to || !message) throw new BadRequestException('to and message required');
+    await this.waService.sendMessage(to, message);
+    return { success: true };
   }
 }
