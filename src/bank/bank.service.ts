@@ -19,11 +19,11 @@ export class BankService {
       const exists = await this.bankRepository.findOne({
         where: { bank_name: createBankDto.bank_name },
       });
-      if (exists) {
+      if (exists.bank_name == createBankDto.bank_name && exists.owner == createBankDto.owner) {
         throw new HttpException(
           {
             statusCode: HttpStatus.BAD_REQUEST,
-            error: 'bank name already used',
+            error: 'bank name and owner already used',
           },
           HttpStatus.BAD_REQUEST,
         );

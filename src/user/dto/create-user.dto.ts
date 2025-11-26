@@ -2,6 +2,17 @@ import { IsEnum, IsNotEmpty } from 'class-validator';
 import { UserStatus } from '../entities/user.entity';
 import { Optional } from '@nestjs/common';
 
+export class PelangganLamaDto {
+  @Optional()
+  start_date: Date;
+
+  @Optional()
+  due_date: Date;
+
+  @Optional()
+  paid_at: Date;
+}
+
 export class CreateUserDto {
   @IsNotEmpty()
   email: string;
@@ -63,17 +74,6 @@ export class CreateUserDto {
 
   @Optional()
   pelanggan_lama: PelangganLamaDto;
-}
-
-export class PelangganLamaDto {
-  @Optional()
-  start_date: Date;
-
-  @Optional()
-  due_date: Date;
-
-  @Optional()
-  paid_at: Date;
 }
 
 export class CreateAdminDto {
