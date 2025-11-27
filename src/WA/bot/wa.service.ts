@@ -2,26 +2,67 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Client, LocalAuth, MessageMedia } from 'whatsapp-web.js';
 import * as qrcode from 'qrcode';
-import * as path from 'path';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { DataSource, LessThan } from 'typeorm';
+import { MailService } from '#/mail/mail.service';
+import { UserStatus } from '#/user/entities/user.entity';
 import { SessionService } from './session.service';
-import { MenuHandlerService } from './menuHandler';
-import { ReminderService } from './reminder';
 
 @Injectable()
 export class WhatsAppService {
   private client: Client | null = null;
+  private static globalClient: Client | null = null;
+
   private qrCodeDataUrl: string | null = null;
   private connected = false;
   private starting = false;
   private reconnecting = false;
+
   private logger = new Logger('WhatsAppService');
 
   constructor(
-    private readonly sessionService: SessionService,
-    private readonly menuHandler: MenuHandlerService,
-    private readonly reminderService: ReminderService,
+    private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
+    private readonly sessionSvc: SessionService,
   ) {}
 
+  /*=======================================================
+   * GLOBAL CLIENT SET/GET
+   *=======================================================*/
+  static setGlobalClient(client: Client) {
+    this.globalClient = client;
+  }
+
+  static getGlobalClient(): Client | null {
+    return this.globalClient;
+  }
+
+  private getClient(): Client {
+    const wa = WhatsAppService.getGlobalClient();
+    if (!wa) throw new Error('Global WhatsApp client not ready');
+    return wa;
+  }
+
+  /*=======================================================
+   * JID NORMALIZATION
+   *=======================================================*/
+  private toJid(phone: string): string {
+    if (!phone) throw new Error('Phone number empty');
+
+    phone = phone.replace(/\D/g, '');
+
+    if (phone.startsWith('62')) return `${phone}@c.us`;
+    if (phone.startsWith('0')) return `62${phone.substring(1)}@c.us`;
+    if (/^[1-9]\d{7,14}$/.test(phone)) return `62${phone}@c.us`;
+
+    if (phone.endsWith('@c.us')) return phone;
+
+    throw new Error(`Invalid phone number: ${phone}`);
+  }
+
+  /*=======================================================
+   * BASIC INFO
+   *=======================================================*/
   getQrCode() {
     return this.qrCodeDataUrl;
   }
@@ -34,21 +75,18 @@ export class WhatsAppService {
     };
   }
 
-  /**
-   * Start the whatsapp-web.js client
-   */
+  /*=======================================================
+   * START BOT
+   *=======================================================*/
   async startBot(): Promise<void> {
     if (this.starting) {
-      this.logger.log('Start already in progress, skip.');
+      this.logger.warn('WA client already starting...');
       return;
     }
     this.starting = true;
 
     try {
-      this.logger.log('🚀 Starting whatsapp-web.js client...');
-
-      // ---- FIX: jangan buat dataPath manual ----
-      // LocalAuth akan menyimpan ke ./LocalAuth/default
+      this.logger.log('🚀 Starting WhatsApp client...');
 
       if (this.client) {
         try {
@@ -58,9 +96,7 @@ export class WhatsAppService {
       }
 
       this.client = new Client({
-        authStrategy: new LocalAuth({
-          clientId: 'main', // nama session WA
-        }),
+        authStrategy: new LocalAuth({ clientId: 'main' }),
         puppeteer: {
           headless: true,
           args: [
@@ -68,233 +104,306 @@ export class WhatsAppService {
             '--disable-setuid-sandbox',
             '--disable-gpu',
             '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-zygote',
-            '--disable-software-rasterizer',
-            '--disable-features=site-per-process',
             '--single-process',
-            '--no-first-run',
-            '--no-default-browser-check',
-            '--disable-background-networking',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding',
-            '--disable-infobars',
-            '--disable-breakpad',
-            '--disable-notifications',
+            '--no-zygote',
           ],
         },
       });
 
-      // ---- QR code event ----
+      /* QR EVENT */
       this.client.on('qr', async (qr) => {
         this.qrCodeDataUrl = await qrcode.toDataURL(qr);
-        this.logger.log('📌 QR ready.');
+        this.logger.log('📌 QR Code ready');
       });
 
-      // ---- Ready (Connected) ----
+      /* READY */
       this.client.on('ready', () => {
-        this.logger.log('✅ WhatsApp connected.');
+        this.logger.log('✅ WhatsApp READY');
         this.connected = true;
         this.qrCodeDataUrl = null;
 
-        // sambungkan client ke feature lain
-        this.menuHandler.setGlobalClient?.(this.client);
-        this.reminderService.startSchedulers?.(this.client);
+        WhatsAppService.setGlobalClient(this.client);
       });
 
-      // ---- Authenticated ----
+      /* AUTH */
       this.client.on('authenticated', () => {
-        this.logger.log('🔐 Authenticated with WhatsApp.');
+        this.logger.log('🔐 Authenticated');
       });
 
-      // ---- Auth failure ----
-      this.client.on('auth_failure', (msg) => {
-        this.logger.error('⚠️ Auth failure:', msg);
+      /* AUTH FAILURE */
+      this.client.on('auth_failure', () => {
+        this.logger.error('❌ Authentication Failed');
         this.qrCodeDataUrl = null;
       });
 
-      // ---- Disconnected ----
+      /* DISCONNECT */
       this.client.on('disconnected', async (reason) => {
         this.logger.warn(`⚠️ Disconnected: ${reason}`);
+
         this.connected = false;
+        WhatsAppService.setGlobalClient(null);
         this.qrCodeDataUrl = null;
 
-        // Prevent concurrent reconnect flows
-        if (this.reconnecting) {
-          this.logger.log('Already handling reconnect/cleanup, skip.');
-          return;
-        }
+        if (this.reconnecting) return;
         this.reconnecting = true;
 
         try {
-          // 1) Try graceful shutdown of client and browser
           try {
-            this.logger.log('Attempting graceful destroy of client...');
-            await this.client.destroy().catch((e) => {
-              this.logger.warn('destroy() warning (ignored):', e?.message ?? e);
-            });
-          } catch (e) {
-            this.logger.warn(
-              'Error while destroying client (ignored):',
-              e?.message ?? e,
-            );
-          }
+            await this.client?.destroy();
+          } catch {}
 
-          // 2) If puppeteer browser still present, attempt to close it
           try {
-            const browser = (this.client as any)?.pupBrowser;
-            if (browser) {
-              this.logger.log('Closing puppeteer browser...');
-              await browser.close().catch((e) => {
-                this.logger.warn(
-                  'browser.close() warning (ignored):',
-                  e?.message ?? e,
-                );
-              });
-            }
-          } catch (e) {
-            this.logger.warn(
-              'Error closing browser (ignored):',
-              e?.message ?? e,
-            );
-          }
+            await this.sessionSvc.clearAuthState();
+          } catch {}
 
-          // 3) Wait & retry to ensure OS releases file handles
-          const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-          let cleaned = false;
-          const maxAttempts = 6;
-          for (let i = 0; i < maxAttempts; i++) {
-            try {
-              // attempt to clear session safely via sessionService (has its own retry logic)
-              await this.sessionService.clearAuthState();
-              cleaned = true;
-              break;
-            } catch (err) {
-              this.logger.warn(
-                `clearAuthState attempt ${i + 1} failed:`,
-                (err as Error).message ?? err,
-              );
-              // on Windows, file locks usually release after small delay
-              await wait(500 + i * 200);
-            }
-          }
-
-          if (!cleaned) {
-            this.logger.error(
-              'Failed to clean session after retries. Will attempt restart without cleaning.',
-            );
-            // Optionally try to force kill chrome processes (windows) — see helper below
-            try {
-              // await this.tryKillChromiumProcesses().catch((e) => {
-              //   this.logger.warn(
-              //     'Force-kill chromium failed (ignored):',
-              //     e?.message ?? e,
-              //   );
-              // });
-              // attempt clear again
-              await this.sessionService.clearAuthState();
-              cleaned = true;
-            } catch (e) {
-              this.logger.error(
-                'Final clearAuthState failed:',
-                (e as Error).message ?? e,
-              );
-            }
-          }
-
-          // 4) Start bot again after short delay so QR will appear
-          await new Promise((r) => setTimeout(r, 800));
-          this.logger.log('Restarting client after disconnect cleanup...');
-          try {
-            await this.startBot();
-          } catch (e) {
-            this.logger.error('Restart failed:', (e as Error).message ?? e);
-          }
+          setTimeout(() => {
+            this.logger.log('🔄 Restarting WhatsApp client...');
+            this.startBot();
+          }, 1000);
         } finally {
           this.reconnecting = false;
         }
       });
 
       await this.client.initialize();
-      this.logger.log('Client initialization triggered.');
-    } catch (e) {
-      this.logger.error('Failed to start WA client:', e);
+      this.logger.log('🚀 Client initialization triggered');
+    } catch (err) {
+      this.logger.error('❌ Failed to start WA client:', err);
     } finally {
       this.starting = false;
     }
   }
 
   async logout() {
-    this.logger.log('Logout requested...');
+    this.logger.log('🚪 Logout requested...');
 
     try {
       if (this.client) {
-        // 1. Logout LocalAuth
+        // clear auth
         try {
           await (this.client as any)?.authStrategy?.logout();
-        } catch (err) {
-          this.logger.warn('LocalAuth logout failed or already cleared.');
-        }
+        } catch {}
 
-        // 2. Destroy chromium
         try {
           await this.client.destroy();
         } catch {}
 
         this.client = null;
-        this.connected = false;
-        this.qrCodeDataUrl = null;
       }
 
+      this.connected = false;
+      this.qrCodeDataUrl = null;
       this.logger.log('Logout complete.');
 
-      // 🌟 FIX PALING PENTING
-      // Langsung start ulang → WA akan memicu QR baru
+      // restart untuk QR baru
       setTimeout(() => this.startBot(), 1000);
-    } catch (error) {
-      this.logger.error('Logout error:', error);
+    } catch (err) {
+      this.logger.error('Logout error:', err);
     }
   }
 
-  async restart(): Promise<void> {
-    this.logger.log('Restart requested...');
+
+  /*=======================================================
+   * SEND MESSAGE (GLOBAL CLIENT ALWAYS USED)
+   *=======================================================*/
+  async sendMessage(to: string, message: string) {
+    const wa = this.getClient();
+
+    const jid = to.includes('@') ? to : `${to}@c.us`;
+
+    return wa.sendMessage(jid, message);
+  }
+
+  /*=======================================================
+   * PAYMENT CONFIRMED
+   *=======================================================*/
+  async sendPaymentConfirmed(phone: string, paymentId: string, userId: string) {
+    const wa = this.getClient();
+
     try {
-      await this.logout();
-    } catch (e) {
-      this.logger.warn(
-        'Error during logout in restart',
-        (e as Error).message ?? e,
-      );
+      const jid = this.toJid(phone);
+
+      await wa.sendMessage(jid, this.buildPaymentSuccess(paymentId));
+      await this.mailService.sendPaymentSuccess(userId, paymentId, new Date());
+
+      this.logger.log(`Payment confirmed → ${jid}`);
+    } catch (err) {
+      this.logger.error('Failed send payment-confirm WA:', err);
+      console.log(err)
     }
-    await new Promise((r) => setTimeout(r, 500));
-    await this.startBot();
   }
 
-  // helper to send simple text message
-  async sendMessage(to: string, content: string) {
-    if (!this.client || !this.connected)
-      throw new Error('WhatsApp client not connected');
-    // whatsapp-web.js expects number with @c.us for personal or @g.us for groups (or full jid)
-    const jid = to.includes('@') ? to : `${to}@c.us`;
-    return this.client.sendMessage(jid, content);
+  /*=======================================================
+   * PAYMENT REJECTED
+   *=======================================================*/
+  async sendPaymentRejected(phone: string, reason: string, userId: string) {
+    const wa = this.getClient();
+
+    try {
+      const jid = this.toJid(phone);
+      const text = this.buildPaymentRejected(reason, 'https://mbinet.click/');
+
+      await wa.sendMessage(jid, text);
+      await this.mailService.sendPaymentRejected(userId, reason);
+
+      this.logger.log(`Payment rejected → ${jid}`);
+    } catch (err) {
+      this.logger.error('Failed send payment-reject WA:', err);
+    }
   }
 
-  // helper to send media (example)
-  async sendMedia(
-    to: string,
-    mediaBuffer: Buffer,
-    filename: string,
-    mimetype?: string,
-  ) {
-    if (!this.client || !this.connected)
-      throw new Error('WhatsApp client not connected');
-    const media = new MessageMedia(
-      mimetype || 'application/octet-stream',
-      mediaBuffer.toString('base64'),
-      filename,
-    );
-    const jid = to.includes('@') ? to : `${to}@c.us`;
-    return this.client.sendMessage(jid, media);
+  /*=======================================================
+   * SERVICE EXPIRED
+   *=======================================================*/
+  async sendExpired(phone: string, userId: string) {
+    const wa = this.getClient();
+
+    try {
+      const jid = this.toJid(phone);
+
+      await wa.sendMessage(
+        jid,
+        this.buildServiceExpired('https://mbinet.click/'),
+      );
+      await this.mailService.sendExpired(userId, new Date());
+
+      this.logger.log(`Expired notice → ${jid}`);
+    } catch (err) {
+      this.logger.error('Failed send expired WA:', err);
+    }
+  }
+
+  /*=======================================================
+   * SUBSCRIPTION REMINDER
+   *=======================================================*/
+  async sendReminder(phone: string, days: number, userId: string) {
+    const wa = this.getClient();
+
+    try {
+      const jid = this.toJid(phone);
+
+      await wa.sendMessage(
+        jid,
+        this.buildSubscriptionReminder(days, 'https://mbinet.click/'),
+      );
+      await this.mailService.sendSubscriptionReminder(userId, new Date());
+
+      this.logger.log(`Reminder ${days} days → ${jid}`);
+    } catch (err) {
+      this.logger.error('Failed send reminder WA:', err);
+    }
+  }
+
+  /*=======================================================
+   * CRON DAILY REMINDER
+   *=======================================================*/
+  @Cron(CronExpression.EVERY_DAY_AT_9AM)
+  async cronDaily() {
+    if (!this.connected) {
+      this.logger.warn('Skipping daily cron — WA offline.');
+      return;
+    }
+
+    const today = new Date();
+    const reminderDays = [7, 3];
+
+    // REMINDER
+    for (const days of reminderDays) {
+      const target = new Date(today.getTime() + days * 86400000);
+
+      const users = await this.dataSource.getRepository('User').find({
+        where: { status: UserStatus.AKTIF, subscription: { dueDate: target } },
+        relations: ['subscription'],
+      });
+
+      for (const user of users) {
+        await this.sendReminder(user.phoneNumber, days, user.id);
+      }
+    }
+
+    // EXPIRED USERS
+    const expired = await this.dataSource.getRepository('User').find({
+      where: {
+        status: UserStatus.AKTIF,
+        subscription: { dueDate: LessThan(today) },
+      },
+      relations: ['subscription'],
+    });
+
+    for (const user of expired) {
+      await this.dataSource
+        .getRepository('User')
+        .update(user.id, { status: UserStatus.NONAKTIF });
+
+      await this.sendExpired(user.phoneNumber, user.id);
+    }
+
+    this.logger.log('Daily cron finished');
+  }
+
+  /*=======================================================
+   * MESSAGE TEMPLATES
+   *=======================================================*/
+  buildSubscriptionReminder(daysLeft: number, link: string): string {
+    return `📅 Pengingat Langganan
+
+Langganan Anda akan berakhir dalam ${daysLeft} hari.
+
+Untuk menghindari pemutusan layanan:
+1. Siapkan pembayaran Anda
+2. Bayar di sini: ${link}
+
+Layanan Anda akan tetap aktif setelah pembayaran diverifikasi.`;
+  }
+
+  // -------------------------------------------------------
+  // Build: Service Expired
+  // -------------------------------------------------------
+  buildServiceExpired(link: string): string {
+    return `⚠️ Layanan Dinonaktifkan
+
+Langganan Anda telah berakhir. Mohon lakukan perpanjangan segera.
+
+Bayar di sini: ${link}
+
+Layanan Anda akan dipulihkan maksimal 24 jam setelah pembayaran diverifikasi.`;
+  }
+
+  // -------------------------------------------------------
+  // Build: Payment Success
+  // -------------------------------------------------------
+  buildPaymentSuccess(transactionId: string): string {
+    return `🎉 Pembayaran Berhasil!
+
+ID Transaksi: ${transactionId}
+
+Layanan Anda telah aktif kembali. Terima kasih atas pembayaran Anda!
+
+Butuh bantuan? Hubungi kami kapan saja.`;
+  }
+
+  // -------------------------------------------------------
+  // Build: Payment Rejected
+  // -------------------------------------------------------
+  buildPaymentRejected(reason: string, link: string): string {
+    return `❌ Pembayaran Ditolak
+
+Alasan: ${reason}
+
+Silakan lakukan pembayaran ulang di sini: ${link}
+
+Jika membutuhkan bantuan, silakan hubungi tim support kami.`;
+  }
+
+  buildWelcomeMessage(name: string, link: string): string {
+    return `👋 Selamat Datang, ${name}!
+
+Terima kasih telah memilih layanan kami.
+
+Untuk mengaktifkan layanan Anda:
+1. Lakukan pembayaran
+2. Bayar di sini: ${link}
+
+Selamat menikmati internet cepat!`;
   }
 }

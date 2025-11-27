@@ -227,6 +227,7 @@ export class UserService {
       payment.price = paket.price;
       payment.buktiPembayaran = registerDto.payment.buktiPembayaran;
       payment.status = 'PENDING';
+      payment.paidAt = new Date()
 
       const savedPayment = await paymentRepo.save(payment);
 

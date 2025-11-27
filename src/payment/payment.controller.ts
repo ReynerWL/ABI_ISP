@@ -12,12 +12,14 @@ import {
   Request,
   DefaultValuePipe,
   ParseIntPipe,
+  HttpException,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { ExtendedRequest } from '#/core/request';
 import { SkipLogging } from '#/logging/skip-logging.decorator';
+import { isUUID } from 'class-validator';
 
 @Controller('payment')
 export class PaymentController {
@@ -95,6 +97,15 @@ export class PaymentController {
 
   @Put('/confirmed/:id')
   async confirmPayment(@Param('id') id: string) {
+    if (id == null || !isUUID(id)){
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'Payment not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
     return {
       data: await this.paymentService.confirmPayment(id),
       statusCode: HttpStatus.OK,

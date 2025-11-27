@@ -32,13 +32,13 @@ export class WhatsAppController {
     return { message: 'Logged out and session cleared.' };
   }
 
-  @Public()
-  @Post('restart')
-  @HttpCode(200)
-  async restart() {
-    await this.waService.restart();
-    return { message: 'Restart initiated.' };
-  }
+  // @Public()
+  // @Post('restart')
+  // @HttpCode(200)
+  // async restart() {
+  //   await this.waService.restart();
+  //   return { message: 'Restart initiated.' };
+  // }
 
   // example endpoint to send message via bot
   @Public()

@@ -9,9 +9,9 @@ export class CreatePaymentDto {
   price: number;
   @IsNotEmpty()
   usersId: string;
-  @IsNotEmpty()
+  @IsOptional()
   start_date: Date;
-  @IsNotEmpty()
+  @IsOptional()
   due_date: Date;
   @IsNotEmpty()
   buktiPembayaran: string;
