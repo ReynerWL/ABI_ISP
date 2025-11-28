@@ -44,17 +44,21 @@ export class PaketService {
 
   async findAll(
     query?: string,
+    status?: boolean,
     order: 'ASC' | 'DESC' = 'ASC',
     paginationDto?: PaginationDto,
   ) {
     const { page, limit } = paginationDto;
+
     const qb = this.paketRepository.createQueryBuilder('paket');
 
     if (query) {
       qb.andWhere('paket.name LIKE :query', { query: `%${query}%` });
     }
 
-    qb.orderBy('paket.price', order);
+    if (status !== undefined) {
+      qb.andWhere('paket.status = :status', { status });
+    }
 
     qb.orderBy('paket.price', order);
 
@@ -64,16 +68,14 @@ export class PaketService {
 
     const [data, total] = await qb.getManyAndCount();
 
-    const pagination = {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-
     return {
       data,
-      pagination,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -91,10 +93,10 @@ export class PaketService {
 
   async PaketActive(id: string) {
     const paket = await this.paketRepository.findOne({ where: { id: id } });
-     if (!paket) {
+    if (!paket) {
       throw new NotFoundException('Data Paket tidak ditemukan');
     }
-    return await this.paketRepository.update(paket.id, { status: true })
+    return await this.paketRepository.update(paket.id, { status: true });
   }
 
   async PaketInactive(id: string) {

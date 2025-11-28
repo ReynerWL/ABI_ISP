@@ -242,4 +242,45 @@ export class MailService {
       fallbackHtml,
     );
   }
+
+async sendWelcomeEmail(
+  user_id: string,
+  customerId: string,
+  paymentId: string
+) {
+  const user = await this.dataSource.getRepository(User).findOne({
+    where: { id: user_id },
+    relations: { paket: true },
+  });
+
+  const link = `https://mbinet.click/riwayat-transaksi/${paymentId}`;
+
+  const fallbackHtml = `
+    <h2>Selamat Datang, ${user.name}!</h2>
+    <p>Terima kasih telah bergabung dengan layanan MBI NET.</p>
+    <p><b>Customer ID:</b> ${customerId}</p>
+    <p><b>ID Pembayaran:</b> ${paymentId}</p>
+    <p>Anda dapat melihat detail transaksi di link berikut:</p>
+    <a href="${link}">${link}</a>
+  `;
+
+  await this.safeSendMail(
+    {
+      to: user.email,
+      subject: '👋 Selamat Datang di MBI NET!',
+      template: 'welcome',
+      context: {
+        name: user.name,
+        customerId,
+        paymentId,
+        link,
+        companyName: 'MBI NET',
+        supportEmail: 'mbinet5758@gmail.com',
+        year: new Date().getFullYear(),
+      },
+    },
+    fallbackHtml
+  );
+}
+
 }

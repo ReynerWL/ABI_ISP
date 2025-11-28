@@ -55,30 +55,28 @@ export class PaketController {
 
   @Public()
   @Get()
-  @ApiQuery({
-    name: 'query',
-    required: false,
-    type: String,
-    example: 'paket',
-    description: 'Search keyword',
-  })
-  @ApiQuery({
-    name: 'order',
-    required: false,
-    enum: ['ASC', 'DESC'],
-    example: 'DESC',
-    description: 'Sort order by price',
-  })
-  @ApiOkResponse({
-    description: 'Sukses mengambil data paket!',
-  })
+  @ApiQuery({ name: 'query', required: false })
+  @ApiQuery({ name: 'order', required: false, enum: ['ASC', 'DESC'] })
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiOkResponse({ description: 'Sukses mengambil data paket!' })
   @SkipLogging()
   async findAll(
     @Query('query') query?: string,
+    @Query('status') status?: string,
     @Query('order') order: 'ASC' | 'DESC' = 'ASC',
     @Query() paginationDto?: PaginationDto,
   ) {
-    const data = await this.paketService.findAll(query, order, paginationDto);
+    let boolStatus: boolean | undefined = undefined;
+
+    if (status === 'true') boolStatus = true;
+    else if (status === 'false') boolStatus = false;
+
+    const data = await this.paketService.findAll(
+      query,
+      boolStatus,
+      order,
+      paginationDto,
+    );
 
     return {
       statusCode: HttpStatus.OK,
@@ -108,21 +106,21 @@ export class PaketController {
   }
 
   @Put('active/:id')
-  async paketActive(@Param('id', new ParseUUIDPipe()) id: string){
+  async paketActive(@Param('id', new ParseUUIDPipe()) id: string) {
     return {
       statusCode: HttpStatus.OK,
-      message: "Sukses Update Status Paket",
-      data: await this.paketService.PaketActive(id)
-    }
+      message: 'Sukses Update Status Paket',
+      data: await this.paketService.PaketActive(id),
+    };
   }
 
   @Put('inactive/:id')
-  async paketInactive(@Param('id', new ParseUUIDPipe()) id: string){
+  async paketInactive(@Param('id', new ParseUUIDPipe()) id: string) {
     return {
       statusCode: HttpStatus.OK,
-      message: "Sukses Update Status Paket",
-      data: await this.paketService.PaketInactive(id)
-    }
+      message: 'Sukses Update Status Paket',
+      data: await this.paketService.PaketInactive(id),
+    };
   }
 
   @Put(':id')

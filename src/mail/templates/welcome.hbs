@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Welcome to MBI NET</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f7f9;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #ffffff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: #0d6efd;
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+    .icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+    .content {
+      padding: 30px;
+      line-height: 1.6;
+    }
+    .content h2 {
+      color: #0d6efd;
+      margin-top: 0;
+    }
+    .info-box {
+      background: #e7f1ff;
+      border: 1px solid #bcd4ff;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+      line-height: 1.5;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      margin: 20px 0 10px 0;
+      background: #198754;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .footer {
+      background: #f1f3f5;
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: #6c757d;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="icon">👋</div>
+      <h1>Welcome to MBI NET!</h1>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+      <h2>Hello {{name}},</h2>
+
+      <p>
+        Thank you for joining <b>MBI NET</b>! Your account has been registered successfully.
+        Below are your account and transaction details:
+      </p>
+
+      <div class="info-box">
+        <p><strong>Customer ID:</strong> {{customerId}}</p>
+        <p><strong>Payment ID:</strong> {{paymentId}}</p>
+        <p><strong>Package:</strong> {{packageName}}</p>
+      </div>
+
+      <p>
+        You can view or verify your payment and service information using the link below:
+      </p>
+
+      <a href="{{link}}" class="btn">View Transaction</a>
+
+      <p>If you need any help or support, feel free to contact our support team.</p>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      &copy; {{year}} {{companyName}}. All rights reserved.<br/>
+      This is an automated email, please do not reply.
+    </div>
+
+  </div>
+</body>
+</html>

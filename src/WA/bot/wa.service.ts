@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Client, LocalAuth, MessageMedia } from 'whatsapp-web.js';
 import * as qrcode from 'qrcode';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DataSource, LessThan } from 'typeorm';
+import { Between, DataSource, LessThan } from 'typeorm';
 import { MailService } from '#/mail/mail.service';
 import { UserStatus } from '#/user/entities/user.entity';
 import { SessionService } from './session.service';
@@ -202,7 +202,6 @@ export class WhatsAppService {
     }
   }
 
-
   /*=======================================================
    * SEND MESSAGE (GLOBAL CLIENT ALWAYS USED)
    *=======================================================*/
@@ -229,7 +228,7 @@ export class WhatsAppService {
       this.logger.log(`Payment confirmed → ${jid}`);
     } catch (err) {
       this.logger.error('Failed send payment-confirm WA:', err);
-      console.log(err)
+      console.log(err);
     }
   }
 
@@ -294,6 +293,37 @@ export class WhatsAppService {
     }
   }
 
+  async sendWelcomeMessage(
+    phone: string,
+    name: string,
+    customerId: string,
+    paymentId: string,
+  ) {
+    const wa = this.getClient();
+    if (!wa) {
+      this.logger.warn('WA client not ready');
+      return;
+    }
+
+    try {
+      const jid = this.toJid(phone);
+      const link = `https://mbinet.click/`;
+
+      const message = this.buildWelcomeMessage(
+        name,
+        customerId,
+        paymentId,
+        link,
+      );
+
+      await wa.sendMessage(jid, message);
+
+      this.logger.log(`Welcome message sent → ${jid}`);
+    } catch (err) {
+      this.logger.error('Failed to send welcome message:', err);
+    }
+  }
+
   /*=======================================================
    * CRON DAILY REMINDER
    *=======================================================*/
@@ -305,32 +335,53 @@ export class WhatsAppService {
     }
 
     const today = new Date();
-    const reminderDays = [7, 3];
 
-    // REMINDER
-    for (const days of reminderDays) {
-      const target = new Date(today.getTime() + days * 86400000);
+    // Normalize hari (kejadian utk waktu)
+    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+    const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+
+    const reminderSchedule = [
+      { days: 7, label: '7 days' },
+      { days: 5, label: '5 days' },
+      { days: 3, label: '3 days' },
+      { days: 0, label: 'today' },
+    ];
+
+    for (const { days, label } of reminderSchedule) {
+      const targetDate = new Date(startOfToday.getTime() + days * 86400000);
 
       const users = await this.dataSource.getRepository('User').find({
-        where: { status: UserStatus.AKTIF, subscription: { dueDate: target } },
+        where: {
+          status: UserStatus.AKTIF,
+          subscription: {
+            dueDate: Between(
+              new Date(targetDate.setHours(0, 0, 0, 0)),
+              new Date(targetDate.setHours(23, 59, 59, 999)),
+            ),
+          },
+        },
         relations: ['subscription'],
       });
 
       for (const user of users) {
         await this.sendReminder(user.phoneNumber, days, user.id);
       }
+
+      this.logger.log(`Sent reminder for users due in ${label}`);
     }
 
     // EXPIRED USERS
-    const expired = await this.dataSource.getRepository('User').find({
+    const expiredUsers = await this.dataSource.getRepository('User').find({
       where: {
         status: UserStatus.AKTIF,
-        subscription: { dueDate: LessThan(today) },
+        subscription: {
+          dueDate: LessThan(startOfToday),
+        },
       },
       relations: ['subscription'],
     });
 
-    for (const user of expired) {
+    for (const user of expiredUsers) {
       await this.dataSource
         .getRepository('User')
         .update(user.id, { status: UserStatus.NONAKTIF });
@@ -395,15 +446,23 @@ Silakan lakukan pembayaran ulang di sini: ${link}
 Jika membutuhkan bantuan, silakan hubungi tim support kami.`;
   }
 
-  buildWelcomeMessage(name: string, link: string): string {
-    return `👋 Selamat Datang, ${name}!
+  buildWelcomeMessage(
+    name: string,
+    customerId: string,
+    paymentId: string,
+    link: string,
+  ): string {
+    return `👋 *Selamat Datang, ${name}!*
 
-Terima kasih telah memilih layanan kami.
+Terima kasih telah bergabung dengan *MBI NET*. Berikut detail akun Anda:
 
-Untuk mengaktifkan layanan Anda:
-1. Lakukan pembayaran
-2. Bayar di sini: ${link}
+🆔 *Customer ID:* ${customerId}
+💳 *ID Pembayaran:* ${paymentId}
 
-Selamat menikmati internet cepat!`;
+Untuk melanjutkan aktivasi dan melihat detail transaksi:
+🔗 ${link}
+
+Jika membutuhkan bantuan, silakan hubungi tim support kami.
+Selamat menikmati layanan internet cepat kami! 🚀`;
   }
 }

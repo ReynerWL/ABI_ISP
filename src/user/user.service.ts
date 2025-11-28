@@ -19,6 +19,7 @@ import { Bank } from '#/bank/entities/bank.entity';
 import { PaginationDto } from '#/utils/pagination.dto';
 import { logger } from 'handlebars';
 import { Subscription } from '#/subscription/entities/subscription.entity';
+import { WhatsAppService } from '#/WA/bot/wa.service';
 
 @Injectable()
 export class UserService {
@@ -26,6 +27,7 @@ export class UserService {
     private dataSource: DataSource,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly WaSvc: WhatsAppService
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -240,6 +242,17 @@ export class UserService {
         where: { id: savedPayment.id },
         relations: ['paket', 'bank', 'user'], // Fetch necessary relations
       });
+
+      setImmediate(() => {
+      this.WaSvc.sendWelcomeMessage(
+        payment.user?.phone_number,
+        userWithRelations.name,
+        userWithRelations.customerId,
+        payment.id,
+      ).catch((err) => {
+        console.error('Failed to send WA message:', err);
+      });
+    });
 
       return {
         data: userWithRelations,
