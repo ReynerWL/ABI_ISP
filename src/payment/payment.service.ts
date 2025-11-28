@@ -413,26 +413,41 @@ export class PaymentService {
   }
 
   async update(id: string, updatePaymentDto: UpdatePaymentDto) {
-    const payment = await this.paymentRepository.findOne({
-      where: { id },
-    });
+    const payment = await this.paymentRepository.findOne({ where: { id } });
 
     if (!payment) {
       throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'paket not found',
-        },
+        { statusCode: HttpStatus.NOT_FOUND, error: 'Payment not found' },
         HttpStatus.NOT_FOUND,
       );
     }
 
-    const updatedPayment = new Payment();
-    updatedPayment.buktiPembayaran =
-      updatePaymentDto.buktiPembayaran ?? payment.buktiPembayaran;
-    updatedPayment.paidAt = new Date();
-    Object.assign(updatePaymentDto, updatedPayment);
-    await this.paymentRepository.update(id, updatePaymentDto);
+    const oldProof = payment.buktiPembayaran;
+    const newProof = updatePaymentDto.buktiPembayaran;
+
+    // === LOGIC SEDERHANA: KAPAN HARUS KIRIM NOTIF ADMIN ===
+    const shouldNotify =
+      newProof != null && // user upload bukti
+      newProof !== oldProof; // dan berbeda dari sebelumnya
+
+    // UPDATE FIELDS
+    const updatedPayment: Partial<Payment> = {
+      buktiPembayaran: newProof ?? oldProof, // kalau tidak ada upload, tetap pakai lama
+    };
+
+    // jika bukti baru → set paidAt
+    if (shouldNotify) {
+      updatedPayment.paidAt = new Date();
+    }
+
+    await this.paymentRepository.update(id, updatedPayment);
+
+    // === KIRIM NOTIF ADMIN JIKA ADA BUKTI BARU ===
+    if (shouldNotify) {
+      this.WaSvc.sendNewPaymentNotificationToAdmins(id).catch((err) =>
+        console.error('Failed sending WA admin notif:', err),
+      );
+    }
 
     return {
       data: await this.paymentRepository.findOne({ where: { id } }),
@@ -570,6 +585,50 @@ export class PaymentService {
     } catch (error) {
       console.error(
         `[SubscriptionService] ❌ Failed to create payment for subscription ${subscriptionId}:`,
+        error.message,
+      );
+    }
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_1AM)
+  async disableExpiredSubscriptions() {
+    console.log('[SubscriptionService] 🕐 Checking expired subscriptions...');
+
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // normalize 00:00:00
+
+      // Cari user yang punya subscription expired & masih aktif
+      const expiredUsers = await this.UserRepository.find({
+        where: {
+          status: UserStatus.AKTIF,
+          subscription: {
+            due_date: LessThan(today),
+          },
+        },
+        relations: { subscription: true },
+      });
+
+      console.log(
+        `[SubscriptionService] 🔍 Found ${expiredUsers.length} expired active users`,
+      );
+
+      for (const user of expiredUsers) {
+        await this.UserRepository.update(user.id, {
+          status: UserStatus.NONAKTIF,
+        });
+
+        console.log(
+          `[SubscriptionService] 🔴 User ${user.customerId} marked NONAKTIF (expired)`,
+        );
+      }
+
+      console.log(
+        '[SubscriptionService] ✅ Expired subscription check complete',
+      );
+    } catch (error) {
+      console.error(
+        '[SubscriptionService] ❌ Error in disableExpiredSubscriptions:',
         error.message,
       );
     }

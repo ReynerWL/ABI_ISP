@@ -27,7 +27,7 @@ export class UserService {
     private dataSource: DataSource,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly WaSvc: WhatsAppService
+    private readonly WaSvc: WhatsAppService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -146,7 +146,7 @@ export class UserService {
 
       const userWithRelations = await userRepo.findOne({
         where: { id: savedUser.id },
-        relations: {role:true, subscription: true},
+        relations: { role: true, subscription: true },
       });
 
       return {
@@ -229,7 +229,7 @@ export class UserService {
       payment.price = paket.price;
       payment.buktiPembayaran = registerDto.payment.buktiPembayaran;
       payment.status = 'PENDING';
-      payment.paidAt = new Date()
+      payment.paidAt = new Date();
 
       const savedPayment = await paymentRepo.save(payment);
 
@@ -244,15 +244,15 @@ export class UserService {
       });
 
       setImmediate(() => {
-      this.WaSvc.sendWelcomeMessage(
-        payment.user?.phone_number,
-        userWithRelations.name,
-        userWithRelations.customerId,
-        payment.id,
-      ).catch((err) => {
-        console.error('Failed to send WA message:', err);
+        this.WaSvc.sendWelcomeMessage(
+          payment.user?.phone_number,
+          userWithRelations.name,
+          userWithRelations.customerId,
+          payment.id,
+        ).catch((err) => {
+          console.error('Failed to send WA message:', err);
+        });
       });
-    });
 
       return {
         data: userWithRelations,
@@ -390,15 +390,18 @@ export class UserService {
   }
 
   async findOne(id: string) {
-    const user = await this.userRepository.findOne({
-      where: { id },
-      relations: {
-        role: true,
-        paket: true,
-        subscription: { paket: true },
-        payments: { paket: true, bank: true },
-      },
-    });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.paket', 'paket')
+      .leftJoinAndSelect('user.subscription', 'subscription')
+      .leftJoinAndSelect('subscription.paket', 'subPaket')
+      .leftJoinAndSelect('user.payments', 'payments')
+      .leftJoinAndSelect('payments.paket', 'paymentPaket')
+      .leftJoinAndSelect('payments.bank', 'paymentBank')
+      .where('user.id = :id', { id })
+      .orderBy('payments.createdAt', 'DESC') // ⬅️ urutkan pembayaran terbaru
+      .getOne();
 
     if (!user) {
       throw new HttpException(

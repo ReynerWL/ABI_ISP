@@ -240,7 +240,10 @@ export class WhatsAppService {
 
     try {
       const jid = this.toJid(phone);
-      const text = this.buildPaymentRejected(reason, 'https://mbinet.click/');
+      const text = this.buildPaymentRejected(
+        reason,
+        'https://mbinet.click/riwayat-transaksi',
+      );
 
       await wa.sendMessage(jid, text);
       await this.mailService.sendPaymentRejected(userId, reason);
@@ -262,7 +265,7 @@ export class WhatsAppService {
 
       await wa.sendMessage(
         jid,
-        this.buildServiceExpired('https://mbinet.click/'),
+        this.buildServiceExpired('https://mbinet.click/riwayat-transaksi'),
       );
       await this.mailService.sendExpired(userId, new Date());
 
@@ -283,7 +286,10 @@ export class WhatsAppService {
 
       await wa.sendMessage(
         jid,
-        this.buildSubscriptionReminder(days, 'https://mbinet.click/'),
+        this.buildSubscriptionReminder(
+          days,
+          'https://mbinet.click/riwayat-transaksi',
+        ),
       );
       await this.mailService.sendSubscriptionReminder(userId, new Date());
 
@@ -307,7 +313,7 @@ export class WhatsAppService {
 
     try {
       const jid = this.toJid(phone);
-      const link = `https://mbinet.click/`;
+      const link = `https://mbinet.click/riwayat-transaksi`;
 
       const message = this.buildWelcomeMessage(
         name,
@@ -390,6 +396,56 @@ export class WhatsAppService {
     }
 
     this.logger.log('Daily cron finished');
+  }
+
+  async sendNewPaymentNotificationToAdmins(paymentId: string) {
+    try {
+      if (!this.client || !this.connected) {
+        this.logger.warn('WA client not ready — skipping admin notif');
+        return;
+      }
+
+      // Ambil payment + user
+      const payment = await this.dataSource.getRepository('Payment').findOne({
+        where: { id: paymentId },
+        relations: ['user', 'paket'],
+      });
+
+      if (!payment) return;
+
+      // Ambil semua admin / superadmin
+      const admins = await this.dataSource.getRepository('User').find({
+        where: [{ role: 'ADMIN' }, { role: 'SUPERADMIN' }],
+      });
+
+      if (admins.length === 0) return;
+
+      const msg = `
+📢 *Pembayaran Baru Masuk!*
+
+📄 ID: ${payment.id}
+👤 User: ${payment.user?.name}
+📱 Nomor: ${payment.user?.phone_number}
+📦 Paket: ${payment.paket?.name}
+💵 Harga: Rp ${payment.paket?.price?.toLocaleString()}
+
+Silakan cek & verifikasi di dashboard.
+    `;
+
+      for (const admin of admins) {
+        if (!admin.phone_number) continue;
+
+        const jid = this.toJid(admin.phone_number);
+
+        await this.client.sendMessage(jid, msg).catch((e) => {
+          this.logger.error(`Failed send admin notif to ${jid}:`, e);
+        });
+      }
+
+      this.logger.log(`Admin notification sent for payment #${paymentId}`);
+    } catch (err) {
+      this.logger.error('Failed sending admin new payment notification:', err);
+    }
   }
 
   /*=======================================================
