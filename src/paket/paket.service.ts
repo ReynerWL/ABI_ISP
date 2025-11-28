@@ -89,6 +89,22 @@ export class PaketService {
     return paket;
   }
 
+  async PaketActive(id: string) {
+    const paket = await this.paketRepository.findOne({ where: { id: id } });
+     if (!paket) {
+      throw new NotFoundException('Data Paket tidak ditemukan');
+    }
+    return await this.paketRepository.update(paket.id, { status: true })
+  }
+
+  async PaketInactive(id: string) {
+    const paket = await this.paketRepository.findOne({ where: { id: id } });
+    if (!paket) {
+      throw new NotFoundException('Data Paket tidak ditemukan');
+    }
+    return await this.paketRepository.update(id, { status: false });
+  }
+
   async update(id: string, updatePaketDto: UpdatePaketDto) {
     const paket = await this.paketRepository.findOne({
       where: { id },

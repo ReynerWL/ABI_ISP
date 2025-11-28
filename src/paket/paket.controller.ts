@@ -107,6 +107,24 @@ export class PaketController {
     };
   }
 
+  @Put('active/:id')
+  async paketActive(@Param('id', new ParseUUIDPipe()) id: string){
+    return {
+      statusCode: HttpStatus.OK,
+      message: "Sukses Update Status Paket",
+      data: await this.paketService.PaketActive(id)
+    }
+  }
+
+  @Put('inactive/:id')
+  async paketInactive(@Param('id', new ParseUUIDPipe()) id: string){
+    return {
+      statusCode: HttpStatus.OK,
+      message: "Sukses Update Status Paket",
+      data: await this.paketService.PaketInactive(id)
+    }
+  }
+
   @Put(':id')
   @Roles(Role.ADMIN)
   @ApiOkResponse({

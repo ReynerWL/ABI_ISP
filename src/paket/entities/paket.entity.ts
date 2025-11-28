@@ -31,6 +31,9 @@ export class Paket {
   @Column({ type: 'text', nullable: true })
   photo: string;
 
+  @Column({type: "bool", nullable:true, default:true})
+  status: boolean
+
   @CreateDateColumn({
     type: 'timestamp with time zone',
     nullable: false,

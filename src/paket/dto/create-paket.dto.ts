@@ -17,4 +17,7 @@ export class CreatePaketDto {
   @IsOptional()
   @ApiProperty({ example: 'https://example.com/image.jpg' })
   photo: string;
+
+  @IsOptional()
+  status:boolean
 }
