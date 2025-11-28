@@ -45,7 +45,7 @@ export class PaketService {
   async findAll(
     query?: string,
     status?: boolean,
-    order: 'ASC' | 'DESC' = 'ASC',
+    order: 'ASC' | 'DESC' = 'DESC',
     paginationDto?: PaginationDto,
   ) {
     const { page, limit } = paginationDto;
@@ -96,7 +96,8 @@ export class PaketService {
     if (!paket) {
       throw new NotFoundException('Data Paket tidak ditemukan');
     }
-    return await this.paketRepository.update(paket.id, { status: true });
+    await this.paketRepository.update(paket.id, { status: true });
+    return await this.paketRepository.findOne({where:{id:paket.id}})
   }
 
   async PaketInactive(id: string) {
@@ -104,7 +105,8 @@ export class PaketService {
     if (!paket) {
       throw new NotFoundException('Data Paket tidak ditemukan');
     }
-    return await this.paketRepository.update(id, { status: false });
+    await this.paketRepository.update(id, { status: false });
+    return await this.paketRepository.findOne({where:{id:paket.id}})
   }
 
   async update(id: string, updatePaketDto: UpdatePaketDto) {

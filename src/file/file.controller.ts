@@ -29,7 +29,7 @@ export class FileController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
-    @Query('folder') folder: string,
+    @Body('folder') folder: string,
     @Body('type') type: string, // optional
   ) {
     if (!file) {

@@ -63,7 +63,7 @@ export class PaketController {
   async findAll(
     @Query('query') query?: string,
     @Query('status') status?: string,
-    @Query('order') order: 'ASC' | 'DESC' = 'ASC',
+    @Query('order') order: 'ASC' | 'DESC' = 'DESC',
     @Query() paginationDto?: PaginationDto,
   ) {
     let boolStatus: boolean | undefined = undefined;
