@@ -246,6 +246,8 @@ export class PaymentService {
       confirmedAt: new Date(),
     });
 
+    await this.UserRepository.update(user.id,{status:UserStatus.AKTIF})
+
     setImmediate(() => {
       this.WaSvc.sendPaymentConfirmed(
         payment.user?.phone_number,
