@@ -14,6 +14,9 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordResetToken } from '#/user/entities/passwordresettoken';
 import { Payment } from '#/payment/entities/payment.entity';
+import { WhatsAppService } from '#/WA/bot/wa.service';
+import { MailService } from '#/mail/mail.service';
+import { SessionService } from '#/WA/bot/session.service';
 
 @Module({
   imports: [
@@ -40,6 +43,9 @@ import { Payment } from '#/payment/entities/payment.entity';
     ConfigService,
     AuthService,
     UserService,
+    WhatsAppService,
+    MailService,
+    SessionService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
