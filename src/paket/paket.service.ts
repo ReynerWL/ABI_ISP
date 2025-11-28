@@ -56,7 +56,7 @@ export class PaketService {
       qb.andWhere('paket.name LIKE :query', { query: `%${query}%` });
     }
 
-    if (status !== undefined) {
+    if (status != undefined || null) {
       qb.andWhere('paket.status = :status', { status });
     }
 
