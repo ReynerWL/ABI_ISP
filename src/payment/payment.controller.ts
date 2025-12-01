@@ -62,7 +62,6 @@ export class PaymentController {
 
   @Get('export')
   async exportPaymentsToExcel(
-    @Request() req: ExtendedRequest,
     @Query('status') status?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
@@ -73,7 +72,6 @@ export class PaymentController {
   ) {
     try {
       const buffer = await this.paymentService.exportPaymentsToExcel(
-        req.user.id,
         status,
         startDate,
         endDate,

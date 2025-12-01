@@ -416,7 +416,6 @@ export class PaymentService {
   }
 
   async exportPaymentsToExcel(
-    userId: string,
     status?: string,
     startDate?: string,
     endDate?: string,
@@ -427,7 +426,6 @@ export class PaymentService {
     try {
       const qb = this.paymentRepository
         .createQueryBuilder('payment')
-        .where('payment.user_id = :userId', { userId })
         .leftJoinAndSelect('payment.paket', 'paket')
         .leftJoinAndSelect('payment.bank', 'bank')
         .leftJoinAndSelect('payment.user', 'user');
