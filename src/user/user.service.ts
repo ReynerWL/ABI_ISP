@@ -98,9 +98,9 @@ export class UserService {
       data.salt = randomUUID();
       data.password = await hashPassword(createUserDto.password, data.salt);
       data.alamat = createUserDto.alamat;
-      if (createUserDto.pelanggan_lama){
-        data.status = UserStatus.AKTIF
-      }else{
+      if (createUserDto.pelanggan_lama) {
+        data.status = UserStatus.AKTIF;
+      } else {
         data.status = createUserDto.status;
       }
       data.priority = createUserDto.priority;
@@ -147,7 +147,12 @@ export class UserService {
           due_date: payment.due_date,
         });
 
-        await this.WaSvc.sendMigrationWelcome(savedUser.phone_number,savedUser.name,savedUser.email,savedUser.password)
+        await this.WaSvc.sendMigrationWelcome(
+          savedUser.phone_number,
+          savedUser.name,
+          savedUser.email,
+          savedUser.password,
+        );
       }
 
       const userWithRelations = await userRepo.findOne({
@@ -431,15 +436,17 @@ export class UserService {
   }
 
   async findOneByUser(userId: string) {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: {
-        role: true,
-        paket: true,
-        payments: true,
-        subscription: true,
-      },
-    });
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.paket', 'paket')
+      .leftJoinAndSelect('user.subscription', 'subscription')
+      .leftJoinAndSelect('subscription.paket', 'subPaket')
+      .leftJoinAndSelect('user.payments', 'payments')
+      .leftJoinAndSelect('payments.paket', 'paymentPaket')
+      .leftJoinAndSelect('payments.bank', 'paymentBank')
+      .where('user.id = :id', { id: userId })
+      .getOne();
 
     if (!user) {
       throw new HttpException(
@@ -451,12 +458,19 @@ export class UserService {
       );
     }
 
-    const paymentCount = await this.userRepository.manager
-      .getRepository(Payment)
-      .count({
-        where: { user: { id: userId } },
+    // Urutkan payments terbaru → lama
+    if (user.payments && Array.isArray(user.payments)) {
+      user.payments.sort((a, b) => {
+        const aT = new Date(a.createdAt).getTime();
+        const bT = new Date(b.createdAt).getTime();
+        return bT - aT; // latest first
       });
+    }
 
+    // Hitung jumlah payment
+    const paymentCount = user.payments?.length ?? 0;
+
+    // Susun ulang response seperti format sebelumnya
     const { payments, ...rest } = user;
 
     return {
