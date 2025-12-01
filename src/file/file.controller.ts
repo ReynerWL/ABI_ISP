@@ -72,8 +72,14 @@ export class FileController {
     @Query('folder') folder?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
+    @Query('search') search?: string,
   ) {
-    const result = await this.fileService.listFiles(folder, +page, +limit);
+    const result = await this.fileService.listFiles(
+      folder,
+      Number(page),
+      Number(limit),
+      search,
+    );
 
     return {
       statusCode: HttpStatus.OK,
@@ -82,9 +88,7 @@ export class FileController {
   }
 
   @Delete('delete')
-  async deleteFile(
-    @Query('filename') filename: string,
-  ) {
+  async deleteFile(@Query('filename') filename: string) {
     if (!filename) {
       throw new BadRequestException('filename wajib diisi');
     }

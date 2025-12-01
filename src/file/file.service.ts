@@ -31,55 +31,80 @@ export class FileService {
   /**
    * List file di folder tertentu
    */
-  async listFiles(
-    prefix: string,
-    page = 1,
-    limit = 20,
-  ): Promise<{
-    total: number;
-    page: number;
-    limit: number;
-    data: string[];
-  }> {
-    return new Promise((resolve, reject) => {
-      const objects: string[] = [];
+ async listFiles(
+  prefix: string,
+  page = 1,
+  limit = 20,
+  search?: string,
+): Promise<{
+  total: number;
+  page: number;
+  limit: number;
+  data: string[];
+}> {
+  return new Promise((resolve, reject) => {
+    const objects: string[] = [];
 
-      // Jika folder kosong → root
-      if (!prefix || prefix === '.' || prefix === '/') {
-        prefix = '';
-      } else {
-        prefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
+    // Normalize folder → root
+    if (!prefix || prefix === '.' || prefix === '/') {
+      prefix = '';
+    } else {
+      prefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
+    }
+
+    const stream = this.minioService.client.listObjects(
+      this.minioService.config.bucket,
+      prefix,
+      true, // recursive
+    );
+
+    stream.on('data', (obj) => {
+      if (obj.name) objects.push(obj.name);
+    });
+
+    stream.on('end', () => {
+      let results = [...objects];
+
+      // ============================================
+      // 🔎 (Optional) SEARCH filter
+      // ============================================
+      if (search && search.trim() !== '') {
+        const q = search.toLowerCase();
+        results = results.filter((file) => file.toLowerCase().includes(q));
       }
 
-      const stream = this.minioService.client.listObjects(
-        this.minioService.config.bucket,
-        prefix,
-        true, // recursive
-      );
+      // ============================================
+      // 📌 SORT by filename timestamp → newest first
+      // ============================================
+      results.sort((a, b) => {
+        const numA = parseInt(a.split('_')[0]);
+        const numB = parseInt(b.split('_')[0]);
 
-      stream.on('data', (obj) => {
-        if (obj.name) objects.push(obj.name);
+        if (isNaN(numA) || isNaN(numB)) return 0;
+        return numB - numA; // DESCENDING
       });
 
-      stream.on('end', () => {
-        // Pagination logic
-        const total = objects.length;
-        const start = (page - 1) * limit;
-        const end = start + limit;
+      // ============================================
+      // 📄 PAGINATION
+      // ============================================
+      const total = results.length;
+      const start = (page - 1) * limit;
+      const end = start + limit;
 
-        const paginated = objects.slice(start, end);
+      const paginated = results.slice(start, end);
 
-        resolve({
-          total,
-          page,
-          limit,
-          data: paginated,
-        });
+      resolve({
+        total,
+        page,
+        limit,
+        data: paginated,
       });
-
-      stream.on('error', (err) => reject(err));
     });
-  }
+
+    stream.on('error', (err) => reject(err));
+  });
+}
+
 
 async deleteFileByName(fileName: string) {
   if (!fileName || fileName.trim() === '') {
