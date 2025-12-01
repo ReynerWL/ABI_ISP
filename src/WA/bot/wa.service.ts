@@ -461,7 +461,7 @@ export class WhatsAppService {
 📦 Paket: ${payment.paket?.name}
 💵 Harga: Rp ${payment.paket?.price?.toLocaleString()}
 
-Silakan cek & verifikasi di dashboard https://mbinet.click/riwayat-transaksi .
+Silakan cek & verifikasi di dashboard https://mbinet.click/dashboard .
     `;
 
       for (const admin of admins) {
