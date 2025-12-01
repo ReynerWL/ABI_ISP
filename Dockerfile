@@ -3,22 +3,18 @@
 # ================================
 FROM node:20-alpine3.20 AS builder
 
-RUN sed -i 's|dl-cdn.alpinelinux.org|mirror.sg.gs|g' /etc/apk/repositories
-RUN echo "https://mirror.leaseweb.net/alpine/v3.20/main" >> /etc/apk/repositories && \
-    echo "https://mirror.leaseweb.net/alpine/v3.20/community" >> /etc/apk/repositories
+# Pakai mirror resmi saja, stabil
+RUN sed -i 's|dl-cdn.alpinelinux.org|dl-cdn.alpinelinux.org|g' /etc/apk/repositories
 
 ENV NODE_ENV=build
 WORKDIR /app
 
-RUN apk add --no-cache --virtual .build-deps \
-    git python3 make g++
+RUN apk add --no-cache --virtual .build-deps git python3 make g++
 
 COPY package.json yarn.lock ./
 
-# ❌ Jangan skip download Chromium
+# INI PENTING: puppeteer download Chromium!!!
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
-
-# Puppeteer akan download Chrome di sini → aman untuk WA
 RUN yarn install --frozen-lockfile
 
 COPY . .
@@ -28,12 +24,16 @@ RUN apk del .build-deps
 
 
 # ================================
-# Stage 2: Runtime
+# Stage 2: Runtime — Alpine 3.18
 # ================================
-FROM node:20-alpine3.20 AS runtime
+FROM node:20-alpine3.18 AS runtime
 
-# Chromium dependencies only — NOT chromium itself
+# Pakai mirror resmi Alpine
+RUN sed -i 's|dl-cdn.alpinelinux.org|dl-cdn.alpinelinux.org|g' /etc/apk/repositories
+
+# Install Chromium from Alpine repository (OFFICIAL)
 RUN apk add --no-cache \
+    chromium \
     nss \
     freetype \
     harfbuzz \
@@ -47,17 +47,16 @@ RUN apk add --no-cache \
     libxrandr \
     libxrender \
     libxkbcommon \
-    libgcc \
     pango \
-    atk \
     cairo \
-    cups-libs \
     gdk-pixbuf \
     gtk+3.0
 
-# Puppeteer env
 ENV NODE_ENV=production \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    XDG_CONFIG_HOME=/tmp/.chromium \
+    XDG_CACHE_HOME=/tmp/.chromium
 
 RUN addgroup -S app && adduser -S app -G app
 USER app

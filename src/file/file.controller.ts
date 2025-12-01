@@ -50,7 +50,11 @@ export class FileController {
 
     const filePath = `${uploadFolder}/${fileName}`;
 
-    const upload = await this.fileService.uploadFile(file.buffer, filePath, file.mimetype);
+    const upload = await this.fileService.uploadFile(
+      file.buffer,
+      filePath,
+      file.mimetype,
+    );
 
     return {
       statusCode: HttpStatus.OK,
@@ -64,16 +68,16 @@ export class FileController {
    */
   @Public()
   @Get('list')
-  async listFiles(@Query('folder') folder: string) {
-    if (!folder) {
-      throw new BadRequestException('Folder query parameter is required');
-    }
-
-    const list = await this.fileService.listFiles(folder);
+  async listFiles(
+    @Query('folder') folder?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    const result = await this.fileService.listFiles(folder, +page, +limit);
 
     return {
       statusCode: HttpStatus.OK,
-      data: list,
+      ...result,
     };
   }
 

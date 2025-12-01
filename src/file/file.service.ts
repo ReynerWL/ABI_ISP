@@ -31,14 +31,24 @@ export class FileService {
   /**
    * List file di folder tertentu
    */
-  async listFiles(prefix: string): Promise<string[]> {
+  async listFiles(
+    prefix: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{
+    total: number;
+    page: number;
+    limit: number;
+    data: string[];
+  }> {
     return new Promise((resolve, reject) => {
       const objects: string[] = [];
-      
-      if (prefix == '.') {
-        prefix = ''
-      }else{
-        prefix = `${prefix}/`
+
+      // Jika folder kosong → root
+      if (!prefix || prefix === '.' || prefix === '/') {
+        prefix = '';
+      } else {
+        prefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
       }
 
       const stream = this.minioService.client.listObjects(
@@ -48,10 +58,25 @@ export class FileService {
       );
 
       stream.on('data', (obj) => {
-        objects.push(obj.name);
+        if (obj.name) objects.push(obj.name);
       });
 
-      stream.on('end', () => resolve(objects));
+      stream.on('end', () => {
+        // Pagination logic
+        const total = objects.length;
+        const start = (page - 1) * limit;
+        const end = start + limit;
+
+        const paginated = objects.slice(start, end);
+
+        resolve({
+          total,
+          page,
+          limit,
+          data: paginated,
+        });
+      });
+
       stream.on('error', (err) => reject(err));
     });
   }
