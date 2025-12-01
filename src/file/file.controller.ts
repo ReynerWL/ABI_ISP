@@ -83,14 +83,13 @@ export class FileController {
 
   @Delete('delete')
   async deleteFile(
-    @Query('folder') folder: string,
     @Query('filename') filename: string,
   ) {
-    if (!folder || !filename) {
-      throw new BadRequestException('folder dan filename wajib diisi');
+    if (!filename) {
+      throw new BadRequestException('filename wajib diisi');
     }
 
-    const result = await this.fileService.deleteFile(folder, filename);
+    const result = await this.fileService.deleteFileByName(filename);
 
     return {
       statusCode: HttpStatus.OK,

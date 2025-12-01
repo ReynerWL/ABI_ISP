@@ -81,35 +81,46 @@ export class FileService {
     });
   }
 
-  async deleteFile(folder: string, fileName: string) {
-    folder = folder.trim().toLowerCase();
-
-    // Validasi folder whitelist
-    if (!this.allowedFolders.includes(folder)) {
-      throw new BadRequestException(
-        `Folder "${folder}" tidak diperbolehkan. Gunakan: ${this.allowedFolders.join(', ')}`,
-      );
-    }
-
-    const path = `${folder}/${fileName}`;
-
-    // Cek apakah file ada
-    const files = await this.minioService.listObjects(folder);
-
-    if (!files.includes(path)) {
-      throw new NotFoundException(
-        `File "${fileName}" tidak ditemukan di folder "${folder}".`,
-      );
-    }
-
-    // Hapus file
-    await this.minioService.deleteFile(path);
-
-    return {
-      deleted: true,
-      folder,
-      fileName,
-      path,
-    };
+async deleteFileByName(fileName: string) {
+  if (!fileName || fileName.trim() === '') {
+    throw new BadRequestException('fileName tidak boleh kosong');
   }
+
+  fileName = fileName.trim();
+
+  // Ambil semua file dari root (recursive = true)
+  const files: string[] = await new Promise((resolve, reject) => {
+    const list: string[] = [];
+
+    const stream = this.minioService.client.listObjects(
+      this.minioService.config.bucket,
+      '',
+      true, // recursive - cari di semua folder
+    );
+
+    stream.on('data', (obj) => {
+      if (obj.name) list.push(obj.name);
+    });
+
+    stream.on('end', () => resolve(list));
+    stream.on('error', (err) => reject(err));
+  });
+
+  // Cari file dengan nama yang cocok pada akhir path
+  const matched = files.find((f) => f.endsWith(fileName));
+
+  if (!matched) {
+    throw new NotFoundException(`File "${fileName}" tidak ditemukan di bucket.`);
+  }
+
+  // Hapus file
+  await this.minioService.deleteFile(matched);
+
+  return {
+    deleted: true,
+    fileName,
+    path: matched,
+  };
+}
+
 }
