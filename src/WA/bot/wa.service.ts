@@ -326,9 +326,39 @@ export class WhatsAppService {
 
       await wa.sendMessage(jid, message);
 
+      await this.mailService.sendWelcomeEmail(customerId, paymentId);
+
       this.logger.log(`Welcome message sent → ${jid}`);
     } catch (err) {
       this.logger.error('Failed to send welcome message:', err);
+    }
+  }
+
+  async sendMigrationWelcome(
+    phone: string,
+    name: string,
+    email: string,
+    password: string,
+  ) {
+    const wa = this.getClient();
+
+    try {
+      const jid = this.toJid(phone);
+
+      const message = this.buildMigrationWelcomeMessage(
+        name,
+        email,
+        password,
+        'https://mbinet.click/login',
+      );
+
+      await wa.sendMessage(jid, message);
+
+      await this.mailService.sendMigrationWelcome(email, name, password);
+
+      this.logger.log(`Migration welcome sent → ${jid}`);
+    } catch (err) {
+      this.logger.error('Failed to send migration welcome message:', err);
     }
   }
 
@@ -431,7 +461,7 @@ export class WhatsAppService {
 📦 Paket: ${payment.paket?.name}
 💵 Harga: Rp ${payment.paket?.price?.toLocaleString()}
 
-Silakan cek & verifikasi di dashboard.
+Silakan cek & verifikasi di dashboard https://mbinet.click/riwayat-transaksi .
     `;
 
       for (const admin of admins) {
@@ -488,7 +518,7 @@ ID Transaksi: ${transactionId}
 
 Layanan Anda telah aktif kembali. Terima kasih atas pembayaran Anda!
 
-Butuh bantuan? Hubungi kami kapan saja.`;
+Butuh bantuan? Hubungi kami kapan saja di +6281210092785.`;
   }
 
   // -------------------------------------------------------
@@ -501,7 +531,7 @@ Alasan: ${reason}
 
 Silakan lakukan pembayaran ulang di sini: ${link}
 
-Jika membutuhkan bantuan, silakan hubungi tim support kami.`;
+Jika membutuhkan bantuan, silakan hubungi tim support kami di +6281210092785.`;
   }
 
   buildWelcomeMessage(
@@ -520,7 +550,29 @@ Terima kasih telah bergabung dengan *MBI NET*. Berikut detail akun Anda:
 Untuk melanjutkan aktivasi dan melihat detail transaksi:
 🔗 ${link}
 
-Jika membutuhkan bantuan, silakan hubungi tim support kami.
+Jika membutuhkan bantuan, silakan hubungi tim support kami di +6281210092785.
 Selamat menikmati layanan internet cepat kami! 🚀`;
+  }
+
+  buildMigrationWelcomeMessage(
+    name: string,
+    email: string,
+    password: string,
+    loginUrl: string,
+  ): string {
+    return `👋 *Halo ${name}!*  
+
+Selamat datang di *Sistem Baru MBI NET!*
+
+Akun lama Anda telah berhasil dipindahkan ke sistem baru kami.  
+Berikut adalah detail akun untuk login:
+
+📧 *Email*: ${email}
+🔑 *Password Baru*: ${password}
+
+Silakan login di sini:
+🔗 ${loginUrl}
+
+Jika membutuhkan bantuan hubungi tim kami di +6281210092785, tim support kami selalu siap membantu 🚀`;
   }
 }

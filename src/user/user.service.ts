@@ -98,7 +98,11 @@ export class UserService {
       data.salt = randomUUID();
       data.password = await hashPassword(createUserDto.password, data.salt);
       data.alamat = createUserDto.alamat;
-      data.status = createUserDto.status;
+      if (createUserDto.pelanggan_lama){
+        data.status = UserStatus.AKTIF
+      }else{
+        data.status = createUserDto.status;
+      }
       data.priority = createUserDto.priority;
       data.ip_address = createUserDto.ip_address;
       data.paket = paket;
@@ -142,6 +146,8 @@ export class UserService {
           start_date: payment.start_date,
           due_date: payment.due_date,
         });
+
+        await this.WaSvc.sendMigrationWelcome(savedUser.phone_number,savedUser.name,savedUser.email,savedUser.password)
       }
 
       const userWithRelations = await userRepo.findOne({

@@ -243,19 +243,15 @@ export class MailService {
     );
   }
 
-async sendWelcomeEmail(
-  user_id: string,
-  customerId: string,
-  paymentId: string
-) {
-  const user = await this.dataSource.getRepository(User).findOne({
-    where: { id: user_id },
-    relations: { paket: true },
-  });
+  async sendWelcomeEmail(customerId: string, paymentId: string) {
+    const user = await this.dataSource.getRepository(User).findOne({
+      where: { customerId: customerId },
+      relations: { paket: true },
+    });
 
-  const link = `https://mbinet.click/riwayat-transaksi/${paymentId}`;
+    const link = `https://mbinet.click/riwayat-transaksi/${paymentId}`;
 
-  const fallbackHtml = `
+    const fallbackHtml = `
     <h2>Selamat Datang, ${user.name}!</h2>
     <p>Terima kasih telah bergabung dengan layanan MBI NET.</p>
     <p><b>Customer ID:</b> ${customerId}</p>
@@ -264,23 +260,60 @@ async sendWelcomeEmail(
     <a href="${link}">${link}</a>
   `;
 
-  await this.safeSendMail(
-    {
-      to: user.email,
-      subject: '👋 Selamat Datang di MBI NET!',
-      template: 'welcome',
-      context: {
-        name: user.name,
-        customerId,
-        paymentId,
-        link,
-        companyName: 'MBI NET',
-        supportEmail: 'mbinet5758@gmail.com',
-        year: new Date().getFullYear(),
+    await this.safeSendMail(
+      {
+        to: user.email,
+        subject: '👋 Selamat Datang di MBI NET!',
+        template: 'welcome',
+        context: {
+          name: user.name,
+          customerId,
+          paymentId,
+          link,
+          companyName: 'MBI NET',
+          supportEmail: 'mbinet5758@gmail.com',
+          year: new Date().getFullYear(),
+        },
       },
-    },
-    fallbackHtml
-  );
-}
+      fallbackHtml,
+    );
+  }
 
+  async sendMigrationWelcome(email: string, name: string, password: string) {
+    const loginUrl = `https://mbinet.click/login`;
+
+    const fallbackHtml = `
+    <h2>Halo ${name},</h2>
+    <p>Selamat datang di <b>Sistem Baru MBI NET</b>!</p>
+    <p>Akun lama Anda telah berhasil kami migrasikan.</p>
+
+    <p><b>Email:</b> ${email}</p>
+    <p><b>Password Baru:</b> ${password}</p>
+
+    <p>Silakan login menggunakan akun tersebut pada link berikut:</p>
+    <a href="${loginUrl}">${loginUrl}</a>
+
+    <br><br>
+    <p>Jika Anda membutuhkan bantuan, hubungi support kami.</p>
+    <p>Terima kasih telah menjadi pelanggan setia kami!</p>
+  `;
+
+    await this.safeSendMail(
+      {
+        to: email,
+        subject: '👋 Selamat Datang di Sistem Baru MBI NET!',
+        template: 'welcome-migration', // ⬅️ template baru
+        context: {
+          name,
+          email,
+          password,
+          loginUrl,
+          companyName: 'MBI NET',
+          supportEmail: 'mbinet5758@gmail.com',
+          year: new Date().getFullYear(),
+        },
+      },
+      fallbackHtml,
+    );
+  }
 }

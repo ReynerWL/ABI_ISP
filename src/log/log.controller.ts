@@ -1,13 +1,11 @@
-import { Controller, Get, Query, Request} from "@nestjs/common";
-import { LogService } from "./log.service";
-import { ExtendedRequest } from "#/core/request";
-import { SkipLogging } from "#/logging/skip-logging.decorator";
+import { Controller, Get, HttpStatus, Query, Request } from '@nestjs/common';
+import { LogService } from './log.service';
+import { ExtendedRequest } from '#/core/request';
+import { SkipLogging } from '#/logging/skip-logging.decorator';
 
 @Controller('log')
 export class LogController {
-  constructor(
-    private readonly logService: LogService
-) {}
+  constructor(private readonly logService: LogService) {}
 
   @Get()
   @SkipLogging()
@@ -16,6 +14,12 @@ export class LogController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
   ) {
-    return this.logService.findAll(req.user.role, page, limit);
+    const result = await this.logService.findAll(req.user.role, +page, +limit);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Success',
+      ...result, // ⬅️ spread result, tidak membungkus ke "data"
+    };
   }
 }

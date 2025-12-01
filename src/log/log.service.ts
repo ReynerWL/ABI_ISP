@@ -27,15 +27,24 @@ export class LogService {
   }
 
   // Optional: Add methods to query logs
-  async findAll(role: string,page: number = 1, limit: number = 10) {
-    if(role.toLocaleLowerCase() != 'superadmin'){
+  async findAll(role: string, page: number = 1, limit: number = 10) {
+    if (role.toLowerCase() !== 'superadmin') {
       throw new Error('Unauthorized');
     }
-    return this.logRepository.find({
+
+    const [data, total] = await this.logRepository.findAndCount({
       skip: (page - 1) * limit,
       take: limit,
       order: { createdAt: 'DESC' },
     });
+
+    return {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      data,
+    };
   }
 
   async findOne(id: string) {
