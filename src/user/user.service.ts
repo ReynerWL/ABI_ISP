@@ -400,7 +400,6 @@ export class UserService {
       .leftJoinAndSelect('payments.paket', 'paymentPaket')
       .leftJoinAndSelect('payments.bank', 'paymentBank')
       .where('user.id = :id', { id })
-      .orderBy('payments.createdAt', 'DESC') // ⬅️ urutkan pembayaran terbaru
       .getOne();
 
     if (!user) {
@@ -411,6 +410,15 @@ export class UserService {
         },
         HttpStatus.NOT_FOUND,
       );
+    }
+
+    // ⬅️ Urutkan payments secara manual setelah query
+    if (user.payments && Array.isArray(user.payments)) {
+      user.payments.sort((a, b) => {
+        const tA = new Date(a.createdAt).getTime();
+        const tB = new Date(b.createdAt).getTime();
+        return tB - tA; // latest first
+      });
     }
 
     return user;

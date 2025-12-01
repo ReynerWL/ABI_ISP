@@ -650,6 +650,10 @@ async exportPaymentsToExcel(
 
       const saved = await this.paymentRepository.save(payment);
 
+      await this.UserRepository.update(user.id,{
+        status: UserStatus.PENDING
+      })
+
       console.log(
         `[SubscriptionService] 💰 Created payment #${saved.id} for subscription ${subscriptionId} (${type})`,
       );
