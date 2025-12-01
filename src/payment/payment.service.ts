@@ -246,7 +246,7 @@ export class PaymentService {
       confirmedAt: new Date(),
     });
 
-    await this.UserRepository.update(user.id,{status:UserStatus.AKTIF})
+    await this.UserRepository.update(user.id, { status: UserStatus.AKTIF });
 
     setImmediate(() => {
       this.WaSvc.sendPaymentConfirmed(
@@ -351,17 +351,37 @@ export class PaymentService {
     limit: number = 10,
   ) {
     try {
-      const qb = this.paymentRepository.createQueryBuilder('payment');
-      qb.where('payment.user_id = :userId', { userId });
+      const qb = this.paymentRepository
+        .createQueryBuilder('payment')
+        .leftJoinAndSelect('payment.paket', 'paket')
+        .leftJoinAndSelect('payment.bank', 'bank')
+        .leftJoinAndSelect('payment.user', 'user')
+        .leftJoinAndSelect('user.subscription', 'subscription')
+        .leftJoinAndSelect('user.paket', 'userPaket')
+        .where('payment.user_id = :userId', { userId });
 
+      // 🔍 QUERY SEARCH ON MULTIPLE FIELDS
       if (query) {
-        qb.andWhere('payment.id LIKE :query', { query: `%${query}%` });
+        qb.andWhere(
+          `
+        (
+          payment.id LIKE :query OR
+          user.name LIKE :query OR
+          user.customerId LIKE :query OR
+          paket.name LIKE :query OR
+          bank.name LIKE :query
+        )
+        `,
+          { query: `%${query}%` },
+        );
       }
 
+      // 🔖 FILTER STATUS
       if (status) {
         qb.andWhere('payment.status = :status', { status });
       }
 
+      // 📅 FILTER DATE RANGE
       if (startDate && endDate) {
         qb.andWhere('payment.createdAt BETWEEN :startDate AND :endDate', {
           startDate,
@@ -369,12 +389,10 @@ export class PaymentService {
         });
       }
 
-      qb.leftJoinAndSelect('payment.paket', 'paket')
-        .leftJoinAndSelect('payment.bank', 'bank')
-        .leftJoinAndSelect('payment.user', 'user')
-        .leftJoinAndSelect('user.subscription', 'subscription')
-        .leftJoinAndSelect('user.paket', 'userPaket');
+      // ORDER DESC / latest first
+      qb.orderBy('payment.createdAt', 'DESC');
 
+      // PAGINATION
       qb.skip((page - 1) * limit).take(limit);
 
       const [data, total] = await qb.getManyAndCount();
@@ -397,74 +415,94 @@ export class PaymentService {
     }
   }
 
-async exportPaymentsToExcel(
-  userId: string,
-  query?: string,
-  status?: string,
-  startDate?: string,
-  endDate?: string,
-) {
-  try {
-    const qb = this.paymentRepository.createQueryBuilder('payment');
-    qb.where('payment.user_id = :userId', { userId });
+  async exportPaymentsToExcel(
+    userId: string,
+    customerId?: string,
+    paketName?: string,
+    bankName?: string,
+    status?: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    try {
+      const qb = this.paymentRepository
+        .createQueryBuilder('payment')
+        .leftJoinAndSelect('payment.user', 'user')
+        .leftJoinAndSelect('payment.paket', 'paket')
+        .leftJoinAndSelect('payment.bank', 'bank')
+        .where('payment.user_id = :userId', { userId });
 
-    if (query) {
-      qb.andWhere('payment.id LIKE :query', { query: `%${query}%` });
-    }
+      // 🔍 FILTER: customerId
+      if (customerId) {
+        qb.andWhere('user.customerId LIKE :customerId', {
+          customerId: `%${customerId}%`,
+        });
+      }
 
-    if (status) {
-      qb.andWhere('payment.status = :status', { status });
-    }
+      // 🔍 FILTER: paket.name
+      if (paketName) {
+        qb.andWhere('paket.name LIKE :paketName', {
+          paketName: `%${paketName}%`,
+        });
+      }
 
-    if (startDate && endDate) {
-      qb.andWhere('payment.createdAt BETWEEN :startDate AND :endDate', {
-        startDate,
-        endDate,
+      // 🔍 FILTER: bank.name
+      if (bankName) {
+        qb.andWhere('bank.name LIKE :bankName', { bankName: `%${bankName}%` });
+      }
+
+      // 🔖 filter status
+      if (status) {
+        qb.andWhere('payment.status = :status', { status });
+      }
+
+      // 📅 date range
+      if (startDate && endDate) {
+        qb.andWhere('payment.createdAt BETWEEN :startDate AND :endDate', {
+          startDate,
+          endDate,
+        });
+      }
+
+      const data = await qb.getMany();
+
+      // ---------------- EXCEL ----------------
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Payments');
+
+      sheet.columns = [
+        { header: 'Payment ID', key: 'id', width: 36 },
+        { header: 'Customer ID', key: 'customerId', width: 20 },
+        { header: 'Customer Name', key: 'user', width: 25 },
+        { header: 'Package', key: 'paket', width: 20 },
+        { header: 'Bank', key: 'bank', width: 20 },
+        { header: 'Amount', key: 'amount', width: 15 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Created At', key: 'createdAt', width: 25 },
+      ];
+
+      data.forEach((p) => {
+        sheet.addRow({
+          id: p.id,
+          customerId: p.user?.customerId,
+          user: p.user?.name,
+          paket: p.paket?.name,
+          bank: p.bank?.bank_name,
+          amount: p.price,
+          status: p.status,
+          createdAt: p.createdAt,
+        });
       });
+
+      return await workbook.xlsx.writeBuffer();
+    } catch (error) {
+      console.log(error);
+      throw new HttpException(
+        'Failed to export data',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-
-    qb.leftJoinAndSelect('payment.paket', 'paket')
-      .leftJoinAndSelect('payment.bank', 'bank')
-      .leftJoinAndSelect('payment.user', 'user');
-
-    const data = await qb.getMany();
-
-    // -------------- EXCEL PROCESS ----------------
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Payments');
-
-    sheet.columns = [
-      { header: 'Payment ID', key: 'id', width: 30 },
-      { header: 'User', key: 'user', width: 25 },
-      { header: 'Package', key: 'paket', width: 20 },
-      { header: 'Amount', key: 'amount', width: 15 },
-      { header: 'Status', key: 'status', width: 15 },
-      { header: 'Created At', key: 'createdAt', width: 25 },
-    ];
-
-    data.forEach((p) => {
-      sheet.addRow({
-        id: p.id,
-        user: p.user?.name,
-        paket: p.paket?.name,
-        amount: p.price,
-        status: p.status,
-        createdAt: p.createdAt,
-      });
-    });
-
-    // Save to buffer
-    const buffer = await workbook.xlsx.writeBuffer();
-    return buffer;
-  } catch (error) {
-    console.log(error);
-    throw new HttpException(
-      'Failed to export data',
-      HttpStatus.INTERNAL_SERVER_ERROR,
-    );
   }
-}
-
 
   async findOne(id: string) {
     try {
@@ -650,9 +688,9 @@ async exportPaymentsToExcel(
 
       const saved = await this.paymentRepository.save(payment);
 
-      await this.UserRepository.update(user.id,{
-        status: UserStatus.PENDING
-      })
+      await this.UserRepository.update(user.id, {
+        status: UserStatus.PENDING,
+      });
 
       console.log(
         `[SubscriptionService] 💰 Created payment #${saved.id} for subscription ${subscriptionId} (${type})`,
