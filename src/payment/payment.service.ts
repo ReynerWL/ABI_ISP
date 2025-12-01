@@ -417,46 +417,27 @@ export class PaymentService {
 
   async exportPaymentsToExcel(
     userId: string,
-    customerId?: string,
-    paketName?: string,
-    bankName?: string,
     status?: string,
     startDate?: string,
     endDate?: string,
+    bankId?: string,
+    paketId?: string,
+    customerId?: string,
   ) {
     try {
       const qb = this.paymentRepository
         .createQueryBuilder('payment')
-        .leftJoinAndSelect('payment.user', 'user')
+        .where('payment.user_id = :userId', { userId })
         .leftJoinAndSelect('payment.paket', 'paket')
         .leftJoinAndSelect('payment.bank', 'bank')
-        .where('payment.user_id = :userId', { userId });
+        .leftJoinAndSelect('payment.user', 'user');
 
-      // 🔍 FILTER: customerId
-      if (customerId) {
-        qb.andWhere('user.customerId LIKE :customerId', {
-          customerId: `%${customerId}%`,
-        });
-      }
-
-      // 🔍 FILTER: paket.name
-      if (paketName) {
-        qb.andWhere('paket.name LIKE :paketName', {
-          paketName: `%${paketName}%`,
-        });
-      }
-
-      // 🔍 FILTER: bank.name
-      if (bankName) {
-        qb.andWhere('bank.name LIKE :bankName', { bankName: `%${bankName}%` });
-      }
-
-      // 🔖 filter status
+      // 🔖 Filter status
       if (status) {
         qb.andWhere('payment.status = :status', { status });
       }
 
-      // 📅 date range
+      // 📅 Filter date range
       if (startDate && endDate) {
         qb.andWhere('payment.createdAt BETWEEN :startDate AND :endDate', {
           startDate,
@@ -464,19 +445,36 @@ export class PaymentService {
         });
       }
 
+      // 🏦 Filter by bank ID
+      if (bankId) {
+        qb.andWhere('payment.bank_id = :bankId', { bankId });
+      }
+
+      // 📦 Filter by paket ID
+      if (paketId) {
+        qb.andWhere('payment.paket_id = :paketId', { paketId });
+      }
+
+      // 👤 Filter by Customer ID
+      if (customerId) {
+        qb.andWhere('user.customerId LIKE :customerId', {
+          customerId: `%${customerId}%`,
+        });
+      }
+
       const data = await qb.getMany();
 
-      // ---------------- EXCEL ----------------
+      // ---------------- EXCEL PROCESS ----------------
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('Payments');
 
       sheet.columns = [
-        { header: 'Payment ID', key: 'id', width: 36 },
+        { header: 'Payment ID', key: 'id', width: 30 },
         { header: 'Customer ID', key: 'customerId', width: 20 },
-        { header: 'Customer Name', key: 'user', width: 25 },
+        { header: 'User', key: 'user', width: 25 },
         { header: 'Package', key: 'paket', width: 20 },
-        { header: 'Bank', key: 'bank', width: 20 },
         { header: 'Amount', key: 'amount', width: 15 },
+        { header: 'Bank', key: 'bank', width: 15 },
         { header: 'Status', key: 'status', width: 15 },
         { header: 'Created At', key: 'createdAt', width: 25 },
       ];
@@ -494,7 +492,8 @@ export class PaymentService {
         });
       });
 
-      return await workbook.xlsx.writeBuffer();
+      const buffer = await workbook.xlsx.writeBuffer();
+      return buffer;
     } catch (error) {
       console.log(error);
       throw new HttpException(

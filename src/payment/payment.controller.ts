@@ -60,40 +60,45 @@ export class PaymentController {
     );
   }
 
-  @Public()
   @Get('export')
-  @ApiQuery({ name: 'query', required: false })
-  @ApiQuery({ name: 'status', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
-  @ApiQuery({ name: 'endDate', required: false })
-  async exportPayments(
-    @Query('query') query?: string,
+  async exportPaymentsToExcel(
+    @Request() req: ExtendedRequest,
     @Query('status') status?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @Req() req?: ExtendedRequest,
+    @Query('bankId') bankId?: string,
+    @Query('paketId') paketId?: string,
+    @Query('customerId') customerId?: string,
     @Res() res?: Response,
   ) {
-    const userId = req.user?.id;
+    try {
+      const buffer = await this.paymentService.exportPaymentsToExcel(
+        req.user.id,
+        status,
+        startDate,
+        endDate,
+        bankId,
+        paketId,
+        customerId,
+      );
 
-    const buffer = await this.paymentService.exportPaymentsToExcel(
-      userId,
-      query,
-      status,
-      startDate,
-      endDate,
-    );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="payments_export_${Date.now()}.xlsx"`,
+      );
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
 
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename="payments.xlsx"',
-    );
-
-    res.send(buffer);
+      return res.send(buffer);
+    } catch (error) {
+      console.error('Export Error:', error);
+      throw new HttpException(
+        'Failed to export payments',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Get('user')
