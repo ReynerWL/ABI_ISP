@@ -88,6 +88,10 @@ export class WhatsAppService {
     try {
       this.logger.log('🚀 Starting WhatsApp client...');
 
+      // Pastikan folder session ada
+      const authPath = this.sessionSvc.getAuthPath();
+
+      // Destroy client sebelumnya kalau ada
       if (this.client) {
         try {
           await this.client.destroy();
@@ -96,7 +100,10 @@ export class WhatsAppService {
       }
 
       this.client = new Client({
-        authStrategy: new LocalAuth({ clientId: 'main' }),
+        authStrategy: new LocalAuth({
+          clientId: 'main',
+          dataPath: authPath, // 🔥 WAJIB → FIX SESSION
+        }),
         puppeteer: {
           headless: true,
           args: [
@@ -110,33 +117,33 @@ export class WhatsAppService {
         },
       });
 
-      /* QR EVENT */
+      // QR
       this.client.on('qr', async (qr) => {
         this.qrCodeDataUrl = await qrcode.toDataURL(qr);
         this.logger.log('📌 QR Code ready');
       });
 
-      /* READY */
+      // READY
       this.client.on('ready', () => {
         this.logger.log('✅ WhatsApp READY');
         this.connected = true;
         this.qrCodeDataUrl = null;
-
         WhatsAppService.setGlobalClient(this.client);
       });
 
-      /* AUTH */
+      // Authenticated
       this.client.on('authenticated', () => {
         this.logger.log('🔐 Authenticated');
       });
 
-      /* AUTH FAILURE */
-      this.client.on('auth_failure', () => {
-        this.logger.error('❌ Authentication Failed');
-        this.qrCodeDataUrl = null;
+      // Auth failure
+      this.client.on('auth_failure', async () => {
+        this.logger.error('❌ AUTH FAILURE — resetting session...');
+        await this.sessionSvc.clearAuthState();
+        setTimeout(() => this.startBot(), 1500);
       });
 
-      /* DISCONNECT */
+      // Disconnected
       this.client.on('disconnected', async (reason) => {
         this.logger.warn(`⚠️ Disconnected: ${reason}`);
 
@@ -144,31 +151,22 @@ export class WhatsAppService {
         WhatsAppService.setGlobalClient(null);
         this.qrCodeDataUrl = null;
 
-        if (this.reconnecting) return;
-        this.reconnecting = true;
+        await this.sessionSvc.clearAuthState();
 
-        try {
-          try {
-            await this.client?.destroy();
-          } catch {}
-
-          try {
-            await this.sessionSvc.clearAuthState();
-          } catch {}
-
-          setTimeout(() => {
-            this.logger.log('🔄 Restarting WhatsApp client...');
-            this.startBot();
-          }, 1000);
-        } finally {
-          this.reconnecting = false;
-        }
+        setTimeout(() => this.startBot(), 1500);
       });
 
-      await this.client.initialize();
-      this.logger.log('🚀 Client initialization triggered');
+      try {
+        await this.client.initialize();
+        this.logger.log('🚀 Client initialization triggered');
+      } catch (e) {
+        console.error('WA initialize() FAILED:', e);
+        throw e;
+      }
     } catch (err) {
-      this.logger.error('❌ Failed to start WA client:', err);
+      this.logger.error('❌ Failed to start WA client');
+      console.error('WA Startup Error:', err);
+      console.error('STACK:', err?.stack);
     } finally {
       this.starting = false;
     }

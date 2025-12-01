@@ -4,8 +4,12 @@ meta {
   seq: 2
 }
 
-get {
-  url: {{base_url}}/api/wa/qr
+put {
+  url: {{base_url}}/payment/confirmed/cad02626-85f2-446c-bd12-d83cd7990ee9
   body: none
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImViYTU0Y2ZiLTM1N2QtNGViZS1iNGNlLTFkNTNlNzM4ZTIxNiIsInJvbGUiOiJTVVBFUkFETUlOIiwibmFtZSI6Ik1CSSBTdXBlcmFkbWluIiwidXNlcm5hbWUiOiJNQkkgU3VwZXJhZG1pbiIsImlhdCI6MTc2NDIyNjk2NCwiZXhwIjoxNzY0MzEzMzY0fQ.WOMYTNl3nJcfoQsFnXdRe8HF1KwJsdvdloX_nQ0gidJLdcHG4D76sc92tEQ4uO4PWIHNtUIjD6Lw5Nmoi2Xn066TNSqA1s0uKPmDRNquF3j7d4S-hj6A4Kpg_SuFzGB-zY1wbXa8Ze904oX8SPKtGSpYWv_QhFHnpqID9qYe4i8Y4byTL8tTocIvSZ_BJMUn-jhydiQkT0hZ-i_H1WqZ4hCi9qzMKZPovyYsYLXiVu3yfbor9muDAeF-ZewrzKBWI-7H4gk8ETyTURG5UGzfimcqfKo30UqqagZF3R9qeY-H2WBb2_yq5Z_mcQ2dEobrcqKTpDjF37geh4na4RREpg
 }

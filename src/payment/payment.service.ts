@@ -16,7 +16,7 @@ import { Paket } from '#/paket/entities/paket.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Subscription } from '#/subscription/entities/subscription.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import dayjs from 'dayjs';
+import * as ExcelJS from 'exceljs';
 import { WhatsAppService } from '#/WA/bot/wa.service';
 
 @Injectable()
@@ -396,6 +396,75 @@ export class PaymentService {
       );
     }
   }
+
+async exportPaymentsToExcel(
+  userId: string,
+  query?: string,
+  status?: string,
+  startDate?: string,
+  endDate?: string,
+) {
+  try {
+    const qb = this.paymentRepository.createQueryBuilder('payment');
+    qb.where('payment.user_id = :userId', { userId });
+
+    if (query) {
+      qb.andWhere('payment.id LIKE :query', { query: `%${query}%` });
+    }
+
+    if (status) {
+      qb.andWhere('payment.status = :status', { status });
+    }
+
+    if (startDate && endDate) {
+      qb.andWhere('payment.createdAt BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      });
+    }
+
+    qb.leftJoinAndSelect('payment.paket', 'paket')
+      .leftJoinAndSelect('payment.bank', 'bank')
+      .leftJoinAndSelect('payment.user', 'user');
+
+    const data = await qb.getMany();
+
+    // -------------- EXCEL PROCESS ----------------
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Payments');
+
+    sheet.columns = [
+      { header: 'Payment ID', key: 'id', width: 30 },
+      { header: 'User', key: 'user', width: 25 },
+      { header: 'Package', key: 'paket', width: 20 },
+      { header: 'Amount', key: 'amount', width: 15 },
+      { header: 'Status', key: 'status', width: 15 },
+      { header: 'Created At', key: 'createdAt', width: 25 },
+    ];
+
+    data.forEach((p) => {
+      sheet.addRow({
+        id: p.id,
+        user: p.user?.name,
+        paket: p.paket?.name,
+        amount: p.price,
+        status: p.status,
+        createdAt: p.createdAt,
+      });
+    });
+
+    // Save to buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer;
+  } catch (error) {
+    console.log(error);
+    throw new HttpException(
+      'Failed to export data',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+}
+
 
   async findOne(id: string) {
     try {

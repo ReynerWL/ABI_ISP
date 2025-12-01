@@ -3,65 +3,47 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const SESSION_DIRNAME = 'whatsapp-session';
-
 @Injectable()
 export class SessionService {
   private logger = new Logger('SessionService');
-  private sessionPath = path.join(process.cwd(), SESSION_DIRNAME);
+
+  // Lokasi session resmi WWebJS akan disimpan di:
+  // <project>/whatsapp-session/.wwebjs_auth/
+  private basePath = path.join(process.cwd(), 'whatsapp-session');
+  private authPath = path.join(this.basePath, '.wwebjs_auth');
 
   ensureDir() {
-    if (!fs.existsSync(this.sessionPath)) {
-      fs.mkdirSync(this.sessionPath, { recursive: true });
-      this.logger.log(`📁 Created session directory: ${this.sessionPath}`);
+    if (!fs.existsSync(this.authPath)) {
+      fs.mkdirSync(this.authPath, { recursive: true });
+      this.logger.log(`📁 Created session dir: ${this.authPath}`);
     }
   }
 
-  getSessionPath() {
+  getAuthPath() {
     this.ensureDir();
-    return this.sessionPath;
+    return this.authPath;
   }
 
   /**
-   * Reset session completely (hapus folder session dan buat ulang)
+   * Membersihkan state auth secara penuh
    */
-  // src/WA/bot/session.service.ts (clearAuthState)
-  async clearAuthState(): Promise<void> {
-    const tries = 6;
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  async clearAuthState() {
+    this.logger.warn('🧹 Clearing WhatsApp auth state...');
 
-    const attemptRemove = () => {
-      // Use rmSync with force, but wrap in try to return error if resource busy
-      try {
-        if (fs.existsSync(this.sessionPath)) {
-          fs.rmSync(this.sessionPath, { recursive: true, force: true });
-        }
-        // recreate folder so LocalAuth has a place to write
-        fs.mkdirSync(this.sessionPath, { recursive: true });
-        return true;
-      } catch (e) {
-        // If EBUSY or EPERM, caller will retry
-        throw e;
-      }
-    };
+    const folder = this.authPath;
 
-    for (let i = 0; i < tries; i++) {
+    if (fs.existsSync(folder)) {
       try {
-        attemptRemove();
-        this.logger.log(`🧹 Session directory cleared: ${this.sessionPath}`);
-        return;
+        fs.rmSync(folder, { recursive: true, force: true });
+        this.logger.log(`🗑️ Deleted: ${folder}`);
       } catch (err) {
-        const msg = (err as Error).message ?? err;
-        this.logger.warn(`clearAuthState attempt ${i + 1} failed: ${msg}`);
-        // small backoff
-        await sleep(300 + i * 200);
-        continue;
+        this.logger.error('Failed removing auth folder:', err);
       }
     }
 
-    // Last resort: throw, caller can decide to force kill processes
-    throw new Error(
-      `Failed to clear session at ${this.sessionPath} after ${tries} attempts`,
-    );
+    // Recreate folder agar LocalAuth bisa menulis ulang
+    fs.mkdirSync(folder, { recursive: true });
+
+    this.logger.log('📁 Auth folder recreated');
   }
 }

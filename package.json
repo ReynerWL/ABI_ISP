@@ -45,6 +45,7 @@
     "class-validator": "^0.14.1",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.18",
+    "exceljs": "^4.4.0",
     "form-data": "^4.0.4",
     "googleapis": "^155.0.0",
     "handlebars": "^4.7.8",

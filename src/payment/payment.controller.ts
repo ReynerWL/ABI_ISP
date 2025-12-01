@@ -13,6 +13,8 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
   HttpException,
+  Req,
+  Res,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -20,6 +22,9 @@ import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { ExtendedRequest } from '#/core/request';
 import { SkipLogging } from '#/logging/skip-logging.decorator';
 import { isUUID } from 'class-validator';
+import { Public } from '#/auth/public.decorator';
+import { ApiQuery } from '@nestjs/swagger';
+import { Response } from 'express';
 
 @Controller('payment')
 export class PaymentController {
@@ -53,6 +58,42 @@ export class PaymentController {
       page,
       limit,
     );
+  }
+
+  @Public()
+  @Get('export')
+  @ApiQuery({ name: 'query', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  async exportPayments(
+    @Query('query') query?: string,
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Req() req?: ExtendedRequest,
+    @Res() res?: Response,
+  ) {
+    const userId = req.user?.id;
+
+    const buffer = await this.paymentService.exportPaymentsToExcel(
+      userId,
+      query,
+      status,
+      startDate,
+      endDate,
+    );
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="payments.xlsx"',
+    );
+
+    res.send(buffer);
   }
 
   @Get('user')
@@ -97,7 +138,7 @@ export class PaymentController {
 
   @Put('/confirmed/:id')
   async confirmPayment(@Param('id') id: string) {
-    if (id == null || !isUUID(id)){
+    if (id == null || !isUUID(id)) {
       throw new HttpException(
         {
           statusCode: HttpStatus.NOT_FOUND,
