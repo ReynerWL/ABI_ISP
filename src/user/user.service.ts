@@ -99,7 +99,7 @@ export class UserService {
       data.salt = randomUUID();
       data.password = await hashPassword(createUserDto.password, data.salt);
       data.alamat = createUserDto.alamat;
-      if (createUserDto.pelanggan_lama) {
+      if (createUserDto.is_pelanggan_lama == true) {
         data.status = UserStatus.AKTIF;
       } else {
         data.status = createUserDto.status;
