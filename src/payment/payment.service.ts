@@ -319,7 +319,7 @@ export class PaymentService {
     }
 
     if (bank_id) {
-      qb.andWhere('bank.id LIKE :bank_id', { bank_id: `%${bank_id}%` });
+      qb.andWhere('bank.id = :bank_id', { bank_id: `${bank_id}` });
     }
 
     // 🔹 Filter by Status (exact match)
