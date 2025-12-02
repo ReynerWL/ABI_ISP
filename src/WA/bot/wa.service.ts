@@ -79,15 +79,13 @@ export class WhatsAppService {
    * START BOT
    *=======================================================*/
   async startBot(): Promise<void> {
-    if (this.starting) {
-      this.logger.warn('WA client already starting...');
-      return;
-    }
+    if (this.starting) return;
     this.starting = true;
 
     try {
       this.logger.log('🚀 Starting WhatsApp client...');
 
+      // destroy client lama (tanpa hapus session)
       if (this.client) {
         try {
           await this.client.destroy();
@@ -110,10 +108,10 @@ export class WhatsAppService {
         },
       });
 
-      /* QR EVENT */
+      /* QR */
       this.client.on('qr', async (qr) => {
         this.qrCodeDataUrl = await qrcode.toDataURL(qr);
-        this.logger.log('📌 QR Code ready');
+        this.logger.log('📌 QR Ready');
       });
 
       /* READY */
@@ -125,12 +123,11 @@ export class WhatsAppService {
         WhatsAppService.setGlobalClient(this.client);
       });
 
-      /* AUTH */
+      /* AUTH EVENTS */
       this.client.on('authenticated', () => {
         this.logger.log('🔐 Authenticated');
       });
 
-      /* AUTH FAILURE */
       this.client.on('auth_failure', () => {
         this.logger.error('❌ Authentication Failed');
         this.qrCodeDataUrl = null;
@@ -140,49 +137,33 @@ export class WhatsAppService {
       this.client.on('disconnected', async (reason) => {
         this.logger.warn(`⚠️ Disconnected: ${reason}`);
 
-        const wasConnected = this.connected === true;
-
+        const wasConnected = this.connected;
         this.connected = false;
-        WhatsAppService.setGlobalClient(null);
         this.qrCodeDataUrl = null;
 
         if (this.reconnecting) return;
         this.reconnecting = true;
 
         try {
-          try {
-            await this.client?.destroy();
-          } catch {}
+          await this.client?.destroy().catch(() => {});
 
-          // ❗ Only clear session if WhatsApp was logged in before
-          if (wasConnected) {
-            this.logger.warn(
-              '🗑 Clearing session because client was previously connected',
-            );
-            try {
-              await this.sessionSvc.clearAuthState();
-            } catch {}
+          // ⚠️ Hanya hapus session jika WA sendiri memicu logout
+          if (reason === 'LOGOUT') {
+            this.logger.warn('🗑 WA requested logout → Clearing session');
+            await this.sessionSvc.clearAuthState().catch(() => {});
           } else {
-            this.logger.warn(
-              '⚠️ Not clearing session (client never fully connected)',
-            );
+            this.logger.warn('🔄 Not clearing session (normal disconnect)');
           }
 
-          setTimeout(() => {
-            this.logger.log('🔄 Restarting WhatsApp client...');
-            this.startBot();
-          }, 1000);
+          setTimeout(() => this.startBot(), 1200);
         } finally {
           this.reconnecting = false;
         }
       });
 
       await this.client.initialize();
-      this.logger.log('🚀 Client initialization triggered');
     } catch (err) {
-      this.logger.error('❌ Failed to start WA client:', err);
-      console.error('WA Startup Error:', err);
-      console.error('STACK:', err?.stack);
+      this.logger.error('WA Start Error:', err);
     } finally {
       this.starting = false;
     }
