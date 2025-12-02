@@ -99,11 +99,7 @@ export class UserService {
       data.salt = randomUUID();
       data.password = await hashPassword(createUserDto.password, data.salt);
       data.alamat = createUserDto.alamat;
-      if (createUserDto.is_pelanggan_lama == true) {
-        data.status = UserStatus.AKTIF;
-      } else {
-        data.status = createUserDto.status;
-      }
+      data.status = createUserDto.status;
       data.priority = createUserDto.priority;
       data.ip_address = createUserDto.ip_address;
       data.paket = paket;
