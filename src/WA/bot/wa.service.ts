@@ -530,7 +530,7 @@ ID Transaksi: ${transactionId}
 
 Layanan Anda telah aktif kembali. Terima kasih atas pembayaran Anda!
 
-Butuh bantuan? Hubungi kami kapan saja di +6281210092785.`;
+Butuh bantuan? Hubungi kami kapan saja di +628138005669.`;
   }
 
   // -------------------------------------------------------
@@ -543,7 +543,7 @@ Alasan: ${reason}
 
 Silakan lakukan pembayaran ulang di sini: ${link}
 
-Jika membutuhkan bantuan, silakan hubungi tim support kami di +6281210092785.`;
+Jika membutuhkan bantuan, silakan hubungi tim support kami di +628138005669.`;
   }
 
   buildWelcomeMessage(
@@ -562,7 +562,7 @@ Terima kasih telah bergabung dengan *MBI NET*. Berikut detail akun Anda:
 Untuk melanjutkan aktivasi dan melihat detail transaksi:
 🔗 ${link}
 
-Jika membutuhkan bantuan, silakan hubungi tim support kami di +6281210092785.
+Jika membutuhkan bantuan, silakan hubungi tim support kami di +628138005669.
 Selamat menikmati layanan internet cepat kami! 🚀`;
   }
 
@@ -585,6 +585,6 @@ Berikut adalah detail akun untuk login:
 Silakan login di sini:
 🔗 ${loginUrl}
 
-Jika membutuhkan bantuan hubungi tim kami di +6281210092785, tim support kami selalu siap membantu 🚀`;
+Jika membutuhkan bantuan hubungi tim kami di +628138005669, tim support kami selalu siap membantu 🚀`;
   }
 }
