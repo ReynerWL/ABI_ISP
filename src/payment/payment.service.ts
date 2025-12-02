@@ -152,10 +152,7 @@ export class PaymentService {
 
     if (!payment) {
       throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'Payment not found',
-        },
+        { statusCode: HttpStatus.NOT_FOUND, error: 'Payment not found' },
         HttpStatus.NOT_FOUND,
       );
     }
@@ -163,79 +160,81 @@ export class PaymentService {
     const paket = await this.PaketRepository.findOne({
       where: { id: payment.paket.id },
     });
-    if (!paket) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'Paket not found',
-        },
-        HttpStatus.NOT_FOUND,
-      );
-    }
+
     const bank = await this.BankRepository.findOne({
       where: { id: payment.bank.id },
     });
-    if (!bank) {
+
+    if (!paket || !bank) {
       throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'Bank not found',
-        },
+        { statusCode: HttpStatus.NOT_FOUND, error: 'Paket or Bank not found' },
         HttpStatus.NOT_FOUND,
       );
     }
 
-    // Get user's latest active subscription
+    // GET USER + SUBSCRIPTION
     const user = await this.UserRepository.findOne({
       where: { id: payment.user?.id },
-      relations: { paket: true, subscription: true },
+      relations: { subscription: true },
     });
-    console.log(user);
+
+    // GET LATEST SUBSCRIPTION (BENAR)
     const latestSubscription = await this.SubsRepository.findOne({
-      where: { user: { id: user.subscription?.id } },
-      relations: { user: true, paket: true },
+      where: { user: { id: user.id } },
+      order: { due_date: 'DESC' },
     });
-    console.log(latestSubscription);
 
     let startDate: Date;
     let dueDate: Date;
 
+    // IF USER NO SUBSCRIPTION → START NOW
     if (!latestSubscription || latestSubscription.due_date < new Date()) {
       startDate = new Date();
-      dueDate = new Date(startDate);
-      dueDate.setDate(dueDate.getDate() + 30); // 30 days from today
     } else {
+      // EXTEND FROM LAST END DATE
       startDate = new Date(latestSubscription.due_date);
-      dueDate = new Date(startDate);
-      dueDate.setDate(dueDate.getDate() + 30); // 30 days from previous end
     }
+
+    dueDate = new Date(startDate);
+    dueDate.setDate(dueDate.getDate() + 30);
 
     const startDateStr = startDate.toISOString();
     const dueDateStr = dueDate.toISOString();
 
-    if (latestSubscription === null) {
-      const subs = this.SubsRepository.create({
+    let subscriptionId: string;
+
+    // ⛔ FIX: LATEST SUBSCRIPTION NULL → CREATE NEW ONE
+    if (!latestSubscription) {
+      const newSub = this.SubsRepository.create({
         start_date: startDateStr,
         due_date: dueDateStr,
         paket: { id: paket.id },
         banks: { id: bank.id },
-        user: { id: payment.user.id },
+        user: { id: user.id },
       });
 
-      await this.UserRepository.update(payment.user.id, {
-        subscription: { id: subs.id },
+      const created = await this.SubsRepository.save(newSub);
+      subscriptionId = created.id;
+
+      // Update user → SET subscription
+      await this.UserRepository.update(user.id, {
+        subscription: { id: subscriptionId },
         paket: { id: paket.id },
         status: UserStatus.AKTIF,
       });
     } else {
+      // IF SUBS EXISTS → UPDATE
       await this.SubsRepository.update(latestSubscription.id, {
         start_date: startDateStr,
         due_date: dueDateStr,
         paket: { id: paket.id },
         banks: { id: bank.id },
       });
+
+      subscriptionId = latestSubscription.id;
     }
 
+    // UPDATE PAYMENT
     await this.paymentRepository.update(paymentId, {
       status: 'CONFIRMED',
       start_date: startDateStr,
@@ -246,16 +245,18 @@ export class PaymentService {
       confirmedAt: new Date(),
     });
 
-    await this.UserRepository.update(user.id, { status: UserStatus.AKTIF });
+    // UPDATE USER STATUS → AKTIF
+    await this.UserRepository.update(user.id, {
+      status: UserStatus.AKTIF,
+    });
 
+    // SEND WA
     setImmediate(() => {
       this.WaSvc.sendPaymentConfirmed(
-        payment.user?.phone_number,
+        user.phone_number,
         payment.id,
-        payment.user?.id,
-      ).catch((err) => {
-        console.error('Failed to send WA message:', err);
-      });
+        user.id,
+      ).catch((err) => console.error('Failed to send WA:', err));
     });
 
     return await this.paymentRepository.findOne({
@@ -267,13 +268,14 @@ export class PaymentService {
       },
     });
   }
+
   // src/payment/payment.service.ts
   async findAll(
     query?: string,
     startDate?: string,
     endDate?: string,
     month?: string,
-    bank?: string,
+    bank_id?: string,
     status?: string,
     page: number = 1,
     limit: number = 10,
@@ -316,8 +318,8 @@ export class PaymentService {
       }
     }
 
-    if (bank) {
-      qb.andWhere('bank.bank_name LIKE :bank', { bank: `%${bank}%` });
+    if (bank_id) {
+      qb.andWhere('bank.id LIKE :bank_id', { bank_id: `%${bank_id}%` });
     }
 
     // 🔹 Filter by Status (exact match)

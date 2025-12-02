@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, ILike, Repository } from 'typeorm';
 import { CreateBankDto } from './dto/create-bank.dto';
 import { UpdateBankDto } from './dto/update-bank.dto';
 import { Bank } from './entities/bank.entity';
@@ -14,12 +14,21 @@ export class BankService {
   ) {}
 
   async create(createBankDto: CreateBankDto) {
-    // Check for duplicate bank name
-    if (createBankDto.bank_name) {
+    // Optional: normalisasi input
+    const bankName = createBankDto.bank_name?.trim();
+    const owner = createBankDto.owner?.trim();
+
+    // Cek duplikat hanya kalau kedua field ada
+    if (bankName && owner) {
       const exists = await this.bankRepository.findOne({
-        where: { bank_name: createBankDto.bank_name },
+        where: {
+          bank_name: ILike(bankName),
+          owner: ILike(owner),
+        },
       });
-      if (exists.bank_name == createBankDto.bank_name && exists.owner == createBankDto.owner) {
+
+      // kalau ada record dengan nama & owner sama → throw error
+      if (exists) {
         throw new HttpException(
           {
             statusCode: HttpStatus.BAD_REQUEST,
@@ -30,7 +39,12 @@ export class BankService {
       }
     }
 
-    const bank = this.bankRepository.create(createBankDto);
+    const bank = this.bankRepository.create({
+      ...createBankDto,
+      bank_name: bankName,
+      owner,
+    });
+
     const result = await this.bankRepository.save(bank);
 
     return {

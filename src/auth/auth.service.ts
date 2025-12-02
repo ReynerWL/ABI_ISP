@@ -42,7 +42,10 @@ export class AuthService {
       );
     }
 
-    if (dataUser.status != 'Aktif' && dataUser.role.name.toLocaleUpperCase() == 'Admin') {
+    if (
+      dataUser.status != 'Aktif' &&
+      dataUser.role.name.toLocaleUpperCase() == 'Admin'
+    ) {
       throw new HttpException(
         {
           statusCode: HttpStatus.UNAUTHORIZED,
@@ -50,7 +53,10 @@ export class AuthService {
         },
         HttpStatus.UNAUTHORIZED,
       );
-    }else if (dataUser.role.name.toLocaleUpperCase() == 'Admin' && dataUser.status == 'Aktif'){
+    } else if (
+      dataUser.role.name.toLocaleUpperCase() == 'Admin' &&
+      dataUser.status == 'Aktif'
+    ) {
       await this.usersRepository.update(dataUser.id, {
         last_login: new Date(),
       });
@@ -156,11 +162,16 @@ export class AuthService {
   }
 
   async validateResetToken(token: string) {
-  const user = await this.usersRepository.findOne({ where: { reset_token: token } });
+    const user = await this.usersRepository.findOne({
+      where: { reset_token: token },
+    });
 
     if (!user || new Date(user.reset_token_expired) < new Date()) {
       throw new HttpException(
-        { statusCode: HttpStatus.BAD_REQUEST, error: 'Token tidak valid atau sudah kadaluarsa' },
+        {
+          statusCode: HttpStatus.BAD_REQUEST,
+          error: 'Token tidak valid atau sudah kadaluarsa',
+        },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -172,15 +183,15 @@ export class AuthService {
     const user = await this.validateResetToken(token);
     const newSalt = crypto.randomBytes(16).toString('hex');
     const newPassword = await hashPassword(new_password, newSalt);
-  
+
     user.reset_token = null;
     user.reset_token_expired = null;
-  
+
     await this.usersRepository.update(user.id, {
       password: newPassword,
       salt: newSalt,
     });
-  
+
     return { message: 'Password berhasil diubah' };
   }
 
@@ -198,9 +209,11 @@ export class AuthService {
     }
 
     await Promise.all([
-      this.changePassword(validate.email, forgetPasswordDto.new_password),
+      this.resetPassword(validate.token, forgetPasswordDto.new_password),
       this.tokenRepository.update({ id: validate.id }, { status: 'inactive' }),
     ]);
+
+    return { message: 'Password changed successfully' };
   }
 
   async sendToken(email: string) {
@@ -259,17 +272,23 @@ export class AuthService {
 
     if (!user) {
       throw new HttpException(
-        {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'User not found',
-        },
+        { statusCode: HttpStatus.NOT_FOUND, error: 'User not found' },
         HttpStatus.NOT_FOUND,
       );
     }
 
-    const newPassword = await hashPassword(new_password, user.salt);
+    // Perbaikan: generate salt jika tidak ada
+    let salt = user.salt;
+    if (!salt) {
+      salt = crypto.randomBytes(16).toString('hex');
+    }
 
-    await this.usersRepository.update(user.id, { password: newPassword });
+    const newPassword = await hashPassword(new_password, salt);
+
+    await this.usersRepository.update(user.id, {
+      password: newPassword,
+      salt,
+    });
   }
 
   async validatePasswordToken(token: string) {

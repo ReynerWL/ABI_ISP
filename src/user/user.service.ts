@@ -20,6 +20,7 @@ import { PaginationDto } from '#/utils/pagination.dto';
 import { logger } from 'handlebars';
 import { Subscription } from '#/subscription/entities/subscription.entity';
 import { WhatsAppService } from '#/WA/bot/wa.service';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class UserService {
@@ -396,6 +397,83 @@ export class UserService {
           error: 'An error occurred while fetching users',
         },
         HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  async exportUsersToExcel(
+    paket_id?: string,
+    status?: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
+    try {
+      const qb = this.userRepository
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.role', 'role')
+        .leftJoinAndSelect('user.paket', 'paket');
+
+      // Filter paket_id
+      if (paket_id) {
+        qb.andWhere('paket.id = :paket_id', { paket_id });
+      }
+
+      // Filter status
+      if (status) {
+        qb.andWhere('user.status = :status', { status });
+      }
+
+      // Filter tanggal createdAt
+      if (startDate && endDate) {
+        qb.andWhere('user.createdAt BETWEEN :startDate AND :endDate', {
+          startDate,
+          endDate,
+        });
+      }
+
+      qb.andWhere('role.name ILIKE :role', { role: `user` });
+
+      qb.orderBy('user.createdAt', 'DESC');
+
+      const users = await qb.getMany();
+
+      // =====================================
+      // EXCEL GENERATION
+      // =====================================
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Users');
+
+      sheet.columns = [
+        { header: 'Name', key: 'name', width: 25 },
+        { header: 'Email', key: 'email', width: 30 },
+        { header: 'Customer ID', key: 'customerId', width: 20 },
+        { header: 'Phone Number', key: 'phone', width: 20 },
+        { header: 'Role', key: 'role', width: 15 },
+        { header: 'Package', key: 'paket', width: 20 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Created At', key: 'createdAt', width: 25 },
+      ];
+
+      users.forEach((u) => {
+        sheet.addRow({
+          name: u.name,
+          email: u.email,
+          customerId: u.customerId,
+          phone: u.phone_number,
+          role: u.role?.name,
+          paket: u.paket?.name,
+          status: u.status,
+          createdAt: u.createdAt,
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      return buffer;
+    } catch (error) {
+      console.log(error);
+      throw new HttpException(
+        'Failed to export users',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

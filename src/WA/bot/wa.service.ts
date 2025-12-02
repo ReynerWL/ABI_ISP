@@ -140,6 +140,8 @@ export class WhatsAppService {
       this.client.on('disconnected', async (reason) => {
         this.logger.warn(`⚠️ Disconnected: ${reason}`);
 
+        const wasConnected = this.connected === true;
+
         this.connected = false;
         WhatsAppService.setGlobalClient(null);
         this.qrCodeDataUrl = null;
@@ -152,9 +154,19 @@ export class WhatsAppService {
             await this.client?.destroy();
           } catch {}
 
-          try {
-            await this.sessionSvc.clearAuthState();
-          } catch {}
+          // ❗ Only clear session if WhatsApp was logged in before
+          if (wasConnected) {
+            this.logger.warn(
+              '🗑 Clearing session because client was previously connected',
+            );
+            try {
+              await this.sessionSvc.clearAuthState();
+            } catch {}
+          } else {
+            this.logger.warn(
+              '⚠️ Not clearing session (client never fully connected)',
+            );
+          }
 
           setTimeout(() => {
             this.logger.log('🔄 Restarting WhatsApp client...');

@@ -11,6 +11,7 @@ import {
   ParseUUIDPipe,
   Put,
   UseGuards,
+  Res,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateAdminDto, CreateUserDto } from './dto/create-user.dto';
@@ -18,14 +19,15 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ExtendedRequest } from '#/core/request';
 import { RegisterDto } from './dto/register.dto';
 import { Public } from '#/auth/public.decorator';
-import { PaginationDto} from '#/utils/pagination.dto';
+import { PaginationDto } from '#/utils/pagination.dto';
 import { RolesGuard } from '#/core/roles.guard';
 import { SkipLogging } from '#/logging/skip-logging.decorator';
+import { Response } from 'express';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-  
+
   @Post()
   @UseGuards(RolesGuard)
   async create(@Body() createUserDto: CreateUserDto) {
@@ -38,7 +40,10 @@ export class UserController {
 
   @Post('create-admin')
   @UseGuards(RolesGuard)
-  async createAdmin(@Body() createUserDto: CreateAdminDto, @Request() req: ExtendedRequest) {
+  async createAdmin(
+    @Body() createUserDto: CreateAdminDto,
+    @Request() req: ExtendedRequest,
+  ) {
     return {
       data: await this.userService.createAdmin(createUserDto, req.user.role),
       statusCode: HttpStatus.CREATED,
@@ -69,7 +74,7 @@ export class UserController {
     @Query('start_date') start_date: string,
     @Query('end_date') end_date: string,
     @Query() paginationDto: PaginationDto,
-  ) {  
+  ) {
     const data = await this.userService.findAll(
       search,
       status,
@@ -87,6 +92,34 @@ export class UserController {
       message: 'success',
       ...data,
     };
+  }
+
+  @Get('export')
+  @SkipLogging()
+  async exportUsers(
+    @Query('paket_id') paket_id?: string,
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Res() res?: Response,
+  ) {
+    const file = await this.userService.exportUsersToExcel(
+      paket_id,
+      status,
+      startDate,
+      endDate,
+    );
+
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="export_users.xlsx"',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    res.send(file);
   }
 
   @Get('detail')
@@ -127,12 +160,11 @@ export class UserController {
     @Request() req: ExtendedRequest,
   ) {
     return {
-      data: await this.userService.updateStatus(id,req.user.role),
+      data: await this.userService.updateStatus(id, req.user.role),
       statusCode: HttpStatus.OK,
       message: 'success',
     };
   }
-
 
   @Delete(':id')
   async remove(@Param('id') id: string) {
