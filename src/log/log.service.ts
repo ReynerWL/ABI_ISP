@@ -18,6 +18,7 @@ export class LogService {
       const log = new Log();
       log.data = data;
       const savedLog = await this.logRepository.save(log);
+      await this.logRepository.create(savedLog)
       this.logger.debug(`✅ Log entry saved with ID: ${savedLog.id}`);
       return savedLog;
     } catch (error) {

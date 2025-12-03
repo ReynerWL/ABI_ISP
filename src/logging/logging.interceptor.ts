@@ -26,33 +26,41 @@ export class LoggingInterceptor implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    // --- NEW: Check if logging should be skipped ---
-    // First check route handler, then controller class
-    const skipLogging = this.reflector.getAllAndOverride<boolean>(SKIP_LOGGING, [
-      context.getHandler(), // Method-level metadata
-      context.getClass(),   // Class-level metadata
-    ]);
-
-    if (skipLogging) {
-      return next.handle(); // Skip logging entirely
-    }
-
-    // --- NEW: Skip logging for /log routes ---
     const ctx = context.switchToHttp();
     const request = ctx.getRequest<Request>();
+
+    // --- Skip by decorator ---
+    const skipLogging = this.reflector.getAllAndOverride<boolean>(
+      SKIP_LOGGING,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (skipLogging) return next.handle();
+
+    // --- Skip /log routes ---
     if (request.url.startsWith('/log')) {
-      return next.handle(); // Skip logging for /log* endpoints
+      return next.handle();
     }
-    if (request.method.toLocaleLowerCase() == 'get'){
-      return next.handle()
+
+    // --- Skip ALL GET requests ---
+    if (request.method.toLowerCase() === 'get') {
+      return next.handle();
     }
-    // --- END NEW ---
+
+    // --- Skip WA logout ---
+    if (request.url === '/wa/logout' || request.url.startsWith('/wa/logout')) {
+      return next.handle();
+    }
+
+    // ----------------------------------------------------
+    // 📝 ONLY NON-SKIPPED REQUESTS BELOW THIS POINT
+    // ----------------------------------------------------
 
     const startTime = Date.now();
-
-    const { method, originalUrl, body, headers, ip } = request;
-    const userAgent = headers['user-agent'] || '';
+    const { method, originalUrl, headers } = request;
     const user = (request as any).user;
+    const ip = request.ip;
+    const userAgent = headers['user-agent'] || '';
 
     const baseLogData: any = {
       timestamp: new Date().toISOString(),
@@ -66,39 +74,42 @@ export class LoggingInterceptor implements NestInterceptor {
       error: null,
     };
 
+    const response = ctx.getResponse<Response>();
+
     return next.handle().pipe(
       tap({
-        next: (data) => {
+        next: () => {
           const duration = Date.now() - startTime;
-          const statusCode = response.statusCode;
 
           const logDataToSave = {
             ...baseLogData,
             durationMs: duration,
-            statusCode: statusCode,
+            statusCode: response.statusCode,
           };
 
           this.logger.log(
-            `✅ Request Completed: ${method} ${originalUrl} ${statusCode} - ${duration}ms`,
+            `✅ Request Completed: ${method} ${originalUrl} ${response.statusCode} - ${duration}ms`,
           );
 
           setImmediate(async () => {
             try {
               await this.logService.createLogEntry(logDataToSave);
-            } catch (dbError) {
-              this.logger.error(`❌ Failed to save log entry to DB for ${method} ${originalUrl}`, dbError.stack);
+            } catch (err) {
+              this.logger.error(
+                `❌ Failed to save log entry for ${method} ${originalUrl}`,
+                err.stack,
+              );
             }
           });
         },
       }),
       catchError((error) => {
         const duration = Date.now() - startTime;
-        const statusCode = error.status || 500;
 
         const errorLogDataToSave = {
           ...baseLogData,
           durationMs: duration,
-          statusCode: statusCode,
+          statusCode: error.status || 500,
           error: {
             message: error.message,
             stack: error.stack,
@@ -108,14 +119,16 @@ export class LoggingInterceptor implements NestInterceptor {
 
         this.logger.error(
           `❌ Request Failed: ${method} ${originalUrl} - ${duration}ms - ${error.message}`,
-          error.stack,
         );
 
         setImmediate(async () => {
           try {
             await this.logService.createLogEntry(errorLogDataToSave);
-          } catch (dbError) {
-            this.logger.error(`💥 Failed to save ERROR log entry to DB for ${method} ${originalUrl}`, dbError.stack);
+          } catch (err) {
+            this.logger.error(
+              `💥 Failed to save ERROR log entry for ${method} ${originalUrl}`,
+              err.stack,
+            );
           }
         });
 
