@@ -167,9 +167,9 @@ export class UserController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Request() req: ExtendedRequest) {
     return {
-      data: await this.userService.remove(id),
+      data: await this.userService.remove(id, req.user.role),
       statusCode: HttpStatus.OK,
     };
   }

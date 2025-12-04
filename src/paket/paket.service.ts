@@ -10,6 +10,7 @@ import { CreatePaketDto } from './dto/create-paket.dto';
 import { UpdatePaketDto } from './dto/update-paket.dto';
 import { Paket } from './entities/paket.entity';
 import { PaginationDto } from '#/utils/pagination.dto';
+import { User } from '#/user/entities/user.entity';
 
 @Injectable()
 export class PaketService {
@@ -97,7 +98,7 @@ export class PaketService {
       throw new NotFoundException('Data Paket tidak ditemukan');
     }
     await this.paketRepository.update(paket.id, { status: true });
-    return await this.paketRepository.findOne({where:{id:paket.id}})
+    return await this.paketRepository.findOne({ where: { id: paket.id } });
   }
 
   async PaketInactive(id: string) {
@@ -106,7 +107,7 @@ export class PaketService {
       throw new NotFoundException('Data Paket tidak ditemukan');
     }
     await this.paketRepository.update(id, { status: false });
-    return await this.paketRepository.findOne({where:{id:paket.id}})
+    return await this.paketRepository.findOne({ where: { id: paket.id } });
   }
 
   async update(id: string, updatePaketDto: UpdatePaketDto) {
@@ -140,25 +141,51 @@ export class PaketService {
     };
   }
 
-  async remove(id: string) {
-    const paket = await this.paketRepository.findOne({
-      where: { id },
-    });
-
-    if (!paket) {
+  async remove(id: string, role: string) {
+    // cek apakah paket ada
+    const paket = await this.paketRepository.findOne({ where: { id } });
+    
+    if (role != "SUPERADMIN"){
       throw new HttpException(
         {
-          statusCode: HttpStatus.NOT_FOUND,
-          error: 'paket not found',
+          statusCode: HttpStatus.FORBIDDEN,
+          error: 'Akses Ditolak Bukan Super Admin',
         },
         HttpStatus.NOT_FOUND,
       );
     }
 
+    if (!paket) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'Paket tidak ditemukan',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    // cek apakah ada user yang masih menggunakan paket ini
+    const userUsingPaket = await this.dataSource.manager.findOne(User,{
+      where: { paket: { id } },
+    });
+
+    if (userUsingPaket) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.BAD_REQUEST,
+          error:
+            'Ada user yang menggunakan paket ini. Paket tidak bisa dihapus, hanya bisa dinonaktifkan.',
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Jika aman → soft delete
     await this.paketRepository.softDelete(id);
 
     return {
-      message: 'Paket deleted successfully',
+      message: 'Paket berhasil dihapus',
     };
   }
 }

@@ -749,8 +749,18 @@ export class UserService {
     return savedUser;
   }
 
-  async remove(id: string) {
+  async remove(id: string, role: string) {
     const user = await this.userRepository.findOne({ where: { id } });
+
+    if (role != "SUPERADMIN"){
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.FORBIDDEN,
+          error: 'Akses Ditolak Bukan Super Admin',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
 
     if (!user) {
       throw new HttpException(
@@ -759,6 +769,16 @@ export class UserService {
           error: 'user not found',
         },
         HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (user.status !== UserStatus.NONAKTIF) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.BAD_REQUEST,
+          error: 'User Aktif Tidak Boleh Dihapus',
+        },
+        HttpStatus.BAD_REQUEST,
       );
     }
 

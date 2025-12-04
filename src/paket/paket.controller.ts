@@ -10,6 +10,7 @@ import {
   HttpStatus,
   ParseUUIDPipe,
   Put,
+  Request,
 } from '@nestjs/common';
 import { PaketService } from './paket.service';
 import { CreatePaketDto } from './dto/create-paket.dto';
@@ -28,6 +29,7 @@ import { Role } from '#/core/roles.enum';
 import { Roles } from '#/core/roles.decorator';
 import { PaginationDto } from '#/utils/pagination.dto';
 import { SkipLogging } from '#/logging/skip-logging.decorator';
+import { ExtendedRequest } from '#/core/request';
 
 @Controller('paket')
 @ApiTags('Paket')
@@ -145,7 +147,7 @@ export class PaketController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.paketService.remove(id);
+  remove(@Param('id') id: string, @Request() req: ExtendedRequest) {
+    return this.paketService.remove(id, req.user.role);
   }
 }
