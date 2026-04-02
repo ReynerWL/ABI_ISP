@@ -19,6 +19,10 @@ export class RolesGuard implements CanActivate {
 
     const { user } = context.switchToHttp().getRequest();
 
+    if (user?.role?.includes(Role.SUPERADMIN)) {
+      return true;
+    }
+
     return requiredRoles.some((role) => {
       return user?.role?.includes(role);
     });
@@ -28,6 +32,10 @@ export class RolesGuard implements CanActivate {
 export function checkRole(userRoles: string[], roleToCheck: string) {
   if (!userRoles) {
     return false;
+  }
+
+  if (userRoles.includes(Role.SUPERADMIN)) {
+    return true;
   }
 
   return userRoles.includes(roleToCheck);

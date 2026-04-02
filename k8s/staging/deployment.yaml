@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: api-mbinet
-          image: registry.empatnusabangsa.com/empatnusabangsa/mbinet-be:1
+          image: registry.empatnusabangsa.com/mbinet/mbinet-be:1
           ports:
             - containerPort: 5000
           envFrom:
@@ -23,4 +23,3 @@ spec:
                 name: api-mbinet-env
       imagePullSecrets:
         - name: regcred
-

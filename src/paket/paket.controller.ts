@@ -38,7 +38,7 @@ export class PaketController {
   constructor(private readonly paketService: PaketService) {}
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
   @ApiCreatedResponse({
     description: 'Sukses menambahkan data paket!',
   })
@@ -126,7 +126,7 @@ export class PaketController {
   }
 
   @Put(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
   @ApiOkResponse({
     description: 'Sukses mengedit data paket!',
   })
