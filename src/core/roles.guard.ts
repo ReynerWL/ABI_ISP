@@ -19,12 +19,19 @@ export class RolesGuard implements CanActivate {
 
     const { user } = context.switchToHttp().getRequest();
 
-    if (user?.role?.includes(Role.SUPERADMIN)) {
+    let userRoles: string[] = [];
+    if (typeof user?.role === 'string') {
+      userRoles = [user.role.toUpperCase()];
+    } else if (Array.isArray(user?.role)) {
+      userRoles = user.role.map((r: string) => r.toUpperCase());
+    }
+
+    if (userRoles.includes(Role.SUPERADMIN.toUpperCase())) {
       return true;
     }
 
     return requiredRoles.some((role) => {
-      return user?.role?.includes(role);
+      return userRoles.includes(role.toUpperCase());
     });
   }
 }
@@ -34,9 +41,12 @@ export function checkRole(userRoles: string[], roleToCheck: string) {
     return false;
   }
 
-  if (userRoles.includes(Role.SUPERADMIN)) {
+  const normalizedUserRoles = typeof userRoles === 'string' ? [userRoles] : userRoles;
+  const upperUserRoles = normalizedUserRoles.map(r => typeof r === 'string' ? r.toUpperCase() : r);
+
+  if (upperUserRoles.includes(Role.SUPERADMIN.toUpperCase())) {
     return true;
   }
 
-  return userRoles.includes(roleToCheck);
+  return upperUserRoles.includes(roleToCheck.toUpperCase());
 }
