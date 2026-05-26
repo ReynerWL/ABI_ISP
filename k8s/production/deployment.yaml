@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-mbinet
+  namespace: mbinet-prod
+spec:
+  selector:
+    matchLabels:
+      app: api-mbinet
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: api-mbinet
+    spec:
+      containers:
+        - name: api-mbinet
+          image: registry.empatnusabangsa.com/mbinet/mbinet-be:1
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - secretRef:
+                name: api-mbinet-env
+      imagePullSecrets:
+        - name: regcred
