@@ -1,0 +1,25 @@
+name: Clone to Gitea
+
+on:
+  push:
+    branches:
+      - production
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push ke Gitea
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+
+          git remote add gitea https://${{ secrets.GITEA_USERNAME }}:${{ secrets.GITEA_TOKEN }}@gitea.empatnusabangsa.com/mbinet/mbinet-be.git
+
+          git push gitea production --force

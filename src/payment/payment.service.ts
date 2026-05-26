@@ -1,23 +1,16 @@
+import { Bank } from '#/bank/entities/bank.entity';
+import { Paket } from '#/paket/entities/paket.entity';
+import { Subscription } from '#/subscription/entities/subscription.entity';
+import { User, UserStatus } from '#/user/entities/user.entity';
+import { WhatsAppService } from '#/WA/bot/wa.service';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as ExcelJS from 'exceljs';
+import { Between, LessThan, LessThanOrEqual, Repository } from 'typeorm';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { Payment } from './entities/payment.entity';
-import {
-  Between,
-  DataSource,
-  LessThan,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
-import { User, UserStatus } from '#/user/entities/user.entity';
-import { Bank } from '#/bank/entities/bank.entity';
-import { Paket } from '#/paket/entities/paket.entity';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Subscription } from '#/subscription/entities/subscription.entity';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import * as ExcelJS from 'exceljs';
-import { WhatsAppService } from '#/WA/bot/wa.service';
 
 @Injectable()
 export class PaymentService {
@@ -180,7 +173,7 @@ export class PaymentService {
 
     // GET LATEST SUBSCRIPTION (BENAR)
     const latestSubscription = await this.SubsRepository.findOne({
-      where: { user: { id: user.id } },
+      where: { user: { id: user?.id } },
       order: { due_date: 'DESC' },
     });
 
