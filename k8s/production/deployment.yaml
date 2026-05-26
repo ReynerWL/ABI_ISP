@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: api-mbinet
-          image: registry.empatnusabangsa.com/mbinet/mbinet-be:1
+          image: ${IMAGE}
           ports:
             - containerPort: 5000
           envFrom:
