@@ -1,8 +1,19 @@
 // src/WA/wa.controller.ts
-import { Controller, Get, Post, HttpCode, Body, Query, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  HttpCode,
+  Body,
+  BadRequestException,
+  Sse,
+  MessageEvent,
+} from '@nestjs/common';
 import { WhatsAppService } from './bot/wa.service';
 import { Public } from '#/auth/public.decorator';
 import { SkipLogging } from '#/logging/skip-logging.decorator';
+import { Observable, merge, of } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 @Controller('wa')
 export class WhatsAppController {
@@ -24,6 +35,29 @@ export class WhatsAppController {
     return this.waService.getStatus();
   }
 
+  /**
+   * SSE endpoint — streams WA status changes in real-time.
+   * Sends initial status immediately, then pushes updates on every change.
+   */
+  @Public()
+  @Sse('status/stream')
+  @SkipLogging()
+  statusStream(): Observable<MessageEvent> {
+    return merge(
+      // Emit current status immediately on connect
+      of(this.waService.getStatus()),
+      // Then stream all future changes
+      this.waService.getStatusStream(),
+    ).pipe(
+      map(
+        (status) =>
+          ({
+            data: status,
+          }) as MessageEvent,
+      ),
+    );
+  }
+
   @Public()
   @Post('logout')
   @HttpCode(200)
@@ -31,14 +65,6 @@ export class WhatsAppController {
     await this.waService.logout();
     return { message: 'Logged out and session cleared.' };
   }
-
-  // @Public()
-  // @Post('restart')
-  // @HttpCode(200)
-  // async restart() {
-  //   await this.waService.restart();
-  //   return { message: 'Restart initiated.' };
-  // }
 
   // example endpoint to send message via bot
   @Public()
