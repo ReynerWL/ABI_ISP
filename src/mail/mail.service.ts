@@ -1,10 +1,10 @@
 // src/mail/mail.service.ts
-import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
-import { User } from '../user/entities/user.entity';
-import { DataSource } from 'typeorm';
-import { join } from 'path';
+import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
+import { join } from 'path';
+import { DataSource } from 'typeorm';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class MailService {
@@ -105,7 +105,7 @@ export class MailService {
           name: user.name,
           packageName: user.paket?.name || 'Unknown Package',
           dueDate: dueDate.toLocaleDateString(),
-          supportEmail: 'mbinet5758@gmail.com',
+          supportEmail: 'mediabuanainti@gmail.com',
           companyName: 'MBI NET',
           year: new Date().getFullYear(),
         },
@@ -146,7 +146,7 @@ export class MailService {
           name: user.name,
           packageName: user.paket?.name || 'Unknown Package',
           dueDate: dueDate.toLocaleDateString(),
-          supportEmail: 'mbinet5758@gmail.com',
+          supportEmail: 'mediabuanainti@gmail.com',
           companyName: 'MBI NET',
           year: new Date().getFullYear(),
         },
@@ -194,7 +194,7 @@ export class MailService {
           renewalDate: renewalDate.toLocaleDateString(),
           packageName: user.paket?.name || 'Unknown Package',
           companyName: 'MBI NET',
-          supportEmail: 'mbinet5758@gmail.com',
+          supportEmail: 'mediabuanainti@gmail.com',
           year: new Date().getFullYear(),
         },
       },
@@ -234,7 +234,7 @@ export class MailService {
           name: user.name,
           reason,
           resubmitLink: `https://mbinet.click/riwayat-transaksi`,
-          supportEmail: 'mbinet5758@gmail.com',
+          supportEmail: 'mediabuanainti@gmail.com',
           companyName: 'MBI NET',
           year: new Date().getFullYear(),
         },
@@ -271,7 +271,7 @@ export class MailService {
           paymentId,
           link,
           companyName: 'MBI NET',
-          supportEmail: 'mbinet5758@gmail.com',
+          supportEmail: 'mediabuanainti@gmail.com',
           year: new Date().getFullYear(),
         },
       },
@@ -309,7 +309,7 @@ export class MailService {
           password,
           loginUrl,
           companyName: 'MBI NET',
-          supportEmail: 'mbinet5758@gmail.com',
+          supportEmail: 'mediabuanainti@gmail.com',
           year: new Date().getFullYear(),
         },
       },
