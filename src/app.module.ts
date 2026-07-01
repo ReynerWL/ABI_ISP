@@ -30,6 +30,7 @@ import { LoggingInterceptor } from './logging/logging.interceptor';
 import { UserContextMiddleware } from './middleware/user-context.middleware';
 import { MikrotikModule } from './mikrotik/mikrotik.module';
 import { LogModule } from './log/log.module';
+import { SeederModule } from './seeder/seeder.module';
 require('dotenv').config();
 
 @Module({
@@ -128,7 +129,8 @@ require('dotenv').config();
     DashboardModule,
     QrisModule,
     MikrotikModule,
-    LogModule
+    LogModule,
+    SeederModule
   ],
   providers: [
     {
