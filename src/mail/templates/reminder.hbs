@@ -1,10 +1,10 @@
 <!-- src/mail/templates/reminder.hbs -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Subscription Reminder</title>
+  <title>Pengingat Langganan</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -36,8 +36,9 @@
       line-height: 1.6;
     }
     .content h2 {
-      color: #ffc107;
+      color: #b58100;
       margin-top: 0;
+      font-size: 18px;
     }
     .alert {
       background: #fff3cd;
@@ -56,12 +57,18 @@
     .btn {
       display: inline-block;
       padding: 12px 24px;
-      margin: 10px 0;
+      margin: 15px 0;
       background: #0d6efd;
-      color: white;
+      color: white !important;
       text-decoration: none;
       border-radius: 6px;
-      font-weight: 500;
+      font-weight: bold;
+    }
+    .support {
+      margin-top: 20px;
+      font-size: 14px;
+      border-top: 1px solid #e9ecef;
+      padding-top: 15px;
     }
   </style>
 </head>
@@ -69,24 +76,33 @@
   <div class="container">
     <div class="header">
       <div class="icon">🔔</div>
-      <h1>Reminder: Renew Your Service</h1>
+      <h1 style="margin: 0; font-size: 22px;">Pengingat Masa Aktif Layanan</h1>
     </div>
     <div class="content">
-      <h2>Hello {{name}},</h2>
-      <p>Your subscription for <strong>{{packageName}}</strong> will expire soon.</p>
+      <h2>Pelanggan MBI NET yang terhormat,</h2>
+      <p>Terima kasih atas kesetiaan Anda menggunakan layanan dari MBI NET. Semoga aktivitas digital Anda selalu lancar.</p>
 
       <div class="alert">
-        <strong>Due Date:</strong> {{dueDate}}<br/>
-        Please make your payment before this date to avoid disconnection.
+        <strong>Paket Layanan:</strong> {{packageName}}<br/>
+        <strong>Tanggal Jatuh Tempo:</strong> {{dueDate}}<br/>
+        Dimohon untuk melakukan pembayaran sebelum tanggal tersebut agar layanan Anda tetap dapat digunakan tanpa hambatan.
       </div>
 
-      <p>Stay connected without interruption by renewing today.</p>
+      <p>Silakan klik tombol di bawah ini untuk memproses pembayaran perpanjangan layanan internet Anda:</p>
 
-      <a href="https://mbinet.click" class="btn">Make Payment Now</a>
+      <div style="text-align: center;">
+        <a href="https://mbinet.click" class="btn">Bayar Sekarang</a>
+      </div>
+
+      <p style="font-size: 13px; color: #777;">* Abaikan email ini apabila Anda baru saja menyelesaikan proses pembayaran.</p>
+
+      <div class="support">
+        Jika Anda membutuhkan bantuan, jangan ragu untuk menghubungi Customer Service kami melalui email: <a href="mailto:{{supportEmail}}">{{supportEmail}}</a>
+      </div>
     </div>
     <div class="footer">
-      &copy; {{year}} {{companyName}}. All rights reserved.<br/>
-      This is an automated message, please do not reply.
+      &copy; {{year}} {{companyName}}. Seluruh hak cipta dilindungi.<br/>
+      Ini adalah pesan otomatis, mohon tidak membalas email ini langsung.
     </div>
   </div>
 </body>

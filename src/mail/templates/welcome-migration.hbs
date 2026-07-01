@@ -1,9 +1,10 @@
+<!-- src/mail/templates/welcome-migration.hbs -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Welcome to MBI NET</title>
+  <title>Selamat Datang di Sistem Baru MBI NET</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -37,6 +38,7 @@
     .content h2 {
       color: #0d6efd;
       margin-top: 0;
+      font-size: 18px;
     }
     .info-box {
       background: #e7f1ff;
@@ -45,68 +47,62 @@
       padding: 15px;
       margin: 20px 0;
       line-height: 1.5;
+      font-size: 14px;
     }
     .btn {
       display: inline-block;
       padding: 12px 24px;
-      margin: 20px 0 10px 0;
+      margin: 15px 0;
       background: #198754;
-      color: white;
+      color: white !important;
       text-decoration: none;
       border-radius: 6px;
-      font-weight: 500;
+      font-weight: bold;
     }
-    .footer {
-      background: #f1f3f5;
-      text-align: center;
-      padding: 20px;
-      font-size: 12px;
-      color: #6c757d;
+    .support {
+      margin-top: 20px;
+      font-size: 14px;
+      border-top: 1px solid #e9ecef;
+      padding-top: 15px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-
-    <!-- HEADER -->
     <div class="header">
       <div class="icon">👋</div>
-      <h1>Welcome to MBI NET!</h1>
+      <h1 style="margin: 0; font-size: 22px;">Selamat Datang di Sistem Baru MBI NET!</h1>
     </div>
-
-    <!-- CONTENT -->
     <div class="content">
-      <h2>Hello {{name}},</h2>
-
+      <h2>Halo {{name}},</h2>
       <p>
-        We are happy to welcome you to the <b>New MBI NET System</b>!  
-        Your account has been successfully migrated from the old system.
+        Kami ingin menginformasikan bahwa akun Anda telah berhasil dipindahkan ke sistem baru kami yang dirancang untuk memberikan pengalaman aktivitas digital yang lebih baik dan andal.
       </p>
-
       <p>
-        Below are your updated login details:
+        Berikut adalah detail akun Anda untuk masuk ke sistem:
       </p>
 
       <div class="info-box">
-        <p><strong>Email:</strong> {{email}}</p>
-        <p><strong>New Password:</strong> {{password}}</p>
+        <strong>Email:</strong> {{email}}<br/>
+        <strong>Password Baru:</strong> {{password}}
       </div>
 
       <p>
-        You can now access your dashboard using the link below:
+        Silakan login menggunakan akses di atas melalui tombol di bawah ini:
       </p>
 
-      <a href="{{loginUrl}}" class="btn">Login to Dashboard</a>
+      <div style="text-align: center;">
+        <a href="{{loginUrl}}" class="btn">Login ke Dashboard</a>
+      </div>
 
-      <p>If you need any assistance, feel free to contact our support team.</p>
+      <div class="support">
+        Jika Anda mengalami kendala saat login atau memiliki pertanyaan lainnya, tim support kami selalu siap membantu melalui email: <a href="mailto:{{supportEmail}}">{{supportEmail}}</a>
+      </div>
     </div>
-
-    <!-- FOOTER -->
     <div class="footer">
-      &copy; {{year}} {{companyName}}. All rights reserved.<br/>
-      This is an automated email, please do not reply.
+      &copy; {{year}} {{companyName}}. Seluruh hak cipta dilindungi.<br/>
+      Ini adalah pesan otomatis, mohon tidak membalas email ini langsung.
     </div>
-
   </div>
 </body>
 </html>

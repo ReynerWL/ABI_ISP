@@ -38,6 +38,7 @@
     .content h2 {
       color: #dc3545;
       margin-top: 0;
+      font-size: 18px;
     }
     .alert {
       background: #f8d7da;
@@ -56,12 +57,18 @@
     .btn {
       display: inline-block;
       padding: 12px 24px;
-      margin: 10px 0;
-      background: #0d6efd;
-      color: white;
+      margin: 15px 0;
+      background: #dc3545;
+      color: white !important;
       text-decoration: none;
       border-radius: 6px;
-      font-weight: 500;
+      font-weight: bold;
+    }
+    .support {
+      margin-top: 20px;
+      font-size: 14px;
+      border-top: 1px solid #e9ecef;
+      padding-top: 15px;
     }
   </style>
 </head>
@@ -69,30 +76,39 @@
   <div class="container">
     <div class="header">
       <div class="icon">⚠️</div>
-      <h1>Layanan Anda Telah Dinonaktifkan</h1>
+      <h1 style="margin: 0; font-size: 22px;">Masa Aktif Layanan Berakhir</h1>
     </div>
     <div class="content">
-      <h2>Halo {{name}},</h2>
+      <h2>Pelanggan MBI NET yang terhormat,</h2>
       <p>
-        Kami ingin memberi tahu bahwa langganan Anda untuk 
-        <strong>{{packageName}}</strong> telah <strong>berakhir</strong>.
+        Kami informasikan bahwa masa aktif layanan internet Anda untuk paket <strong>{{packageName}}</strong> saat ini telah berakhir dan layanan sementara kami nonaktifkan.
       </p>
 
       <div class="alert">
-        <strong>Tanggal Berakhir:</strong> {{dueDate}}<br/>
-        Silakan lakukan pembayaran untuk mengaktifkan kembali layanan Anda.
+        <strong>Tanggal Jatuh Tempo:</strong> {{dueDate}}<br/>
+        Mohon lakukan perpanjangan segera untuk memulihkan koneksi internet Anda.
       </div>
 
       <p>
-        Klik tombol di bawah ini untuk melakukan pembayaran dan mengaktifkan kembali koneksi Anda.
+        Agar dapat kembali menikmati layanan internet tanpa hambatan, silakan klik tombol di bawah ini untuk melakukan pembayaran:
       </p>
 
-      <a href="https://mbinet.click" class="btn">Bayar Sekarang</a>
+      <div style="text-align: center;">
+        <a href="https://mbinet.click" class="btn">Perpanjang Layanan Sekarang</a>
+      </div>
+
+      <p style="font-size: 14px; color: #666; margin-top: 15px;">
+        * Layanan Anda akan dipulihkan secara otomatis maksimal 24 jam setelah pembayaran berhasil diverifikasi.
+      </p>
+
+      <div class="support">
+        Jika Anda memiliki pertanyaan atau membutuhkan bantuan, silakan hubungi Customer Service kami melalui email: <a href="mailto:{{supportEmail}}">{{supportEmail}}</a>
+      </div>
     </div>
 
     <div class="footer">
       &copy; {{year}} {{companyName}}. Seluruh hak cipta dilindungi.<br/>
-      Ini adalah pesan otomatis, mohon tidak membalas email ini.
+      Ini adalah pesan otomatis, mohon tidak membalas email ini langsung.
     </div>
   </div>
 </body>

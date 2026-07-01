@@ -3,8 +3,8 @@ import { IsNotEmpty, IsOptional } from 'class-validator';
 export class CreatePaymentDto {
   @IsNotEmpty()
   paketId: string;
-  @IsNotEmpty()
-  banksId: string;
+  @IsOptional()
+  banksId?: string;
   @IsNotEmpty()
   price: number;
   @IsNotEmpty()

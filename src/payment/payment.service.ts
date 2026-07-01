@@ -43,11 +43,14 @@ export class PaymentService {
       throw new Error('Paket not found');
     }
 
-    const bank = await this.BankRepository.findOne({
-      where: { id: createPaymentDto.banksId },
-    });
-    if (!bank) {
-      throw new Error('Bank not found');
+    let bank = null;
+    if (createPaymentDto.banksId) {
+      bank = await this.BankRepository.findOne({
+        where: { id: createPaymentDto.banksId },
+      });
+      if (!bank) {
+        throw new Error('Bank not found');
+      }
     }
 
     // ✅ Check for existing PENDING payment with same paketId and no buktiPembayaran
@@ -116,7 +119,7 @@ export class PaymentService {
     const newPayment = this.paymentRepository.create({
       user: { id: payment.user.id },
       paket: { id: payment.paket.id },
-      bank: { id: payment.bank.id },
+      bank: payment.bank ? { id: payment.bank.id } : null,
       price: payment.price,
       status: 'PENDING',
     });
@@ -154,13 +157,16 @@ export class PaymentService {
       where: { id: payment.paket.id },
     });
 
-    const bank = await this.BankRepository.findOne({
-      where: { id: payment.bank.id },
-    });
+    let bank = null;
+    if (payment.bank) {
+      bank = await this.BankRepository.findOne({
+        where: { id: payment.bank.id },
+      });
+    }
 
-    if (!paket || !bank) {
+    if (!paket) {
       throw new HttpException(
-        { statusCode: HttpStatus.NOT_FOUND, error: 'Paket or Bank not found' },
+        { statusCode: HttpStatus.NOT_FOUND, error: 'Paket not found' },
         HttpStatus.NOT_FOUND,
       );
     }
@@ -202,7 +208,7 @@ export class PaymentService {
         start_date: startDateStr,
         due_date: dueDateStr,
         paket: { id: paket.id },
-        banks: { id: bank.id },
+        banks: bank ? { id: bank.id } : null,
         user: { id: user.id },
       });
 
@@ -221,7 +227,7 @@ export class PaymentService {
         start_date: startDateStr,
         due_date: dueDateStr,
         paket: { id: paket.id },
-        banks: { id: bank.id },
+        banks: bank ? { id: bank.id } : null,
       });
 
       subscriptionId = latestSubscription.id;
@@ -233,7 +239,7 @@ export class PaymentService {
       start_date: startDateStr,
       due_date: dueDateStr,
       paket: { id: paket.id },
-      bank: { id: bank.id },
+      bank: bank ? { id: bank.id } : null,
       paidAt: new Date(),
       confirmedAt: new Date(),
     });

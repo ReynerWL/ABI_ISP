@@ -1,10 +1,10 @@
 <!-- src/mail/templates/payment-rejected.hbs -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Payment Rejected</title>
+  <title>Pembayaran Ditolak</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -38,13 +38,14 @@
     .content h2 {
       color: #dc3545;
       margin-top: 0;
+      font-size: 18px;
     }
     .error-box {
       background: #f8d7da;
-      border: 1px solid #f5c6cb;
-      border-radius: 4px;
+      border-left: 4px solid #dc3545;
       padding: 15px;
       margin: 20px 0;
+      border-radius: 4px;
     }
     .footer {
       background: #f1f3f5;
@@ -56,12 +57,18 @@
     .btn {
       display: inline-block;
       padding: 12px 24px;
-      margin: 10px 0;
+      margin: 15px 0;
       background: #0d6efd;
-      color: white;
+      color: white !important;
       text-decoration: none;
       border-radius: 6px;
-      font-weight: 500;
+      font-weight: bold;
+    }
+    .support {
+      margin-top: 20px;
+      font-size: 14px;
+      border-top: 1px solid #e9ecef;
+      padding-top: 15px;
     }
   </style>
 </head>
@@ -69,25 +76,29 @@
   <div class="container">
     <div class="header">
       <div class="icon">❌</div>
-      <h1>Payment Rejected</h1>
+      <h1 style="margin: 0; font-size: 22px;">Konfirmasi Pembayaran Ditolak</h1>
     </div>
     <div class="content">
-      <h2>Hello {{name}},</h2>
-      <p>Your recent payment was rejected due to the following reason:</p>
+      <h2>Pelanggan MBI NET yang terhormat,</h2>
+      <p>Mohon maaf, bukti pembayaran yang Anda kirimkan tidak dapat kami proses saat ini.</p>
 
       <div class="error-box">
-        <strong>Reason:</strong> {{reason}}
+        <strong>Alasan Penolakan:</strong> {{reason}}
       </div>
 
-      <p>Please resubmit a valid payment proof to avoid service disruption.</p>
+      <p>Silakan lakukan pengiriman ulang bukti pembayaran yang valid untuk menghindari pemutusan atau hambatan layanan internet Anda.</p>
 
-      <a href="{{resubmitLink}}" class="btn">Upload New Proof</a>
+      <div style="text-align: center;">
+        <a href="{{resubmitLink}}" class="btn">Unggah Bukti Pembayaran Baru</a>
+      </div>
 
-      <p>If you need help, contact our support team below.</p>
+      <div class="support">
+        Jika Anda mengalami kesulitan atau memiliki pertanyaan, Customer Service kami siap membantu melalui email: <a href="mailto:{{supportEmail}}">{{supportEmail}}</a>
+      </div>
     </div>
     <div class="footer">
-      &copy; {{year}} {{companyName}}. All rights reserved.<br/>
-      This is an automated message, please do not reply.
+      &copy; {{year}} {{companyName}}. Seluruh hak cipta dilindungi.<br/>
+      Ini adalah pesan otomatis, mohon tidak membalas email ini langsung.
     </div>
   </div>
 </body>
