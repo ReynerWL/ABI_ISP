@@ -225,14 +225,17 @@ export class UserService {
       const savedUser = await userRepo.save(data);
 
       const payment = new Payment();
-      const bank: Bank | null = await bankRepo.findOne({
-        where: { id: registerDto.payment.banksId },
-      });
+      let bank: Bank | null = null;
+      if (registerDto.payment.banksId && registerDto.payment.banksId !== 'null' && registerDto.payment.banksId !== 'undefined' && registerDto.payment.banksId !== '') {
+        bank = await bankRepo.findOne({
+          where: { id: registerDto.payment.banksId },
+        });
+      }
       const paket = await paketRepo.findOneOrFail({
         where: { id: registerDto.payment.paketId },
       });
       payment.paket = paket;
-      payment.bank = bank ?? undefined;
+      payment.bank = bank;
       payment.user = savedUser;
       payment.price = paket.price;
       payment.buktiPembayaran = registerDto.payment.buktiPembayaran;

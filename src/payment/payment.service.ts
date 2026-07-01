@@ -44,7 +44,7 @@ export class PaymentService {
     }
 
     let bank = null;
-    if (createPaymentDto.banksId) {
+    if (createPaymentDto.banksId && createPaymentDto.banksId !== 'null' && createPaymentDto.banksId !== 'undefined' && createPaymentDto.banksId !== '') {
       bank = await this.BankRepository.findOne({
         where: { id: createPaymentDto.banksId },
       });
@@ -83,8 +83,8 @@ export class PaymentService {
     newPayment.status = createPaymentDto.status || 'PENDING';
     newPayment.paidAt = new Date();
 
-    // ✅ Create new payment
-    const payment = this.paymentRepository.create(newPayment);
+    // ✅ Save new payment
+    const payment = await this.paymentRepository.save(newPayment);
 
     return await this.paymentRepository.findOne({
       where: { id: payment.id },

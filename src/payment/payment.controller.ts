@@ -65,7 +65,6 @@ export class PaymentController {
     @Query('status') status?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @Query('bankId') bankId?: string,
     @Query('paketId') paketId?: string,
     @Query('customerId') customerId?: string,
     @Res() res?: Response,
@@ -75,7 +74,6 @@ export class PaymentController {
         status,
         startDate,
         endDate,
-        bankId,
         paketId,
         customerId,
       );

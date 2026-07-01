@@ -1,5 +1,4 @@
-import { Optional } from '@nestjs/common';
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class PaymentDto {
   @IsNotEmpty()
@@ -8,8 +7,8 @@ export class PaymentDto {
   price: number;
   @IsNotEmpty()
   buktiPembayaran: string;
-  @Optional()
-  banksId: string;
+  @IsOptional()
+  banksId?: string;
 }
 
 export class RegisterDto {
