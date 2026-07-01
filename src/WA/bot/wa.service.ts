@@ -459,45 +459,70 @@ Silakan cek & verifikasi di dashboard https://mbinet.click/dashboard .
    * MESSAGE TEMPLATES
    *=======================================================*/
   buildSubscriptionReminder(daysLeft: number, link: string): string {
-    return `📅 Pengingat Langganan
+    return `Pelanggan MBI NET yang terhormat,
 
-Langganan Anda akan berakhir dalam ${daysLeft} hari.
+Terima kasih atas kesetiaan Anda menggunakan layanan dari MBI NET. Semoga aktivitas digital Anda selalu lancar.
 
-Untuk menghindari pemutusan layanan:
-1. Siapkan pembayaran Anda
-2. Bayar di sini: ${link}
+Kami informasikan bahwa masa aktif layanan internet Anda akan berakhir dalam *${daysLeft} hari*.
 
-Layanan Anda akan tetap aktif setelah pembayaran diverifikasi.`;
+Dimohon untuk melakukan pembayaran agar layanan Anda tetap dapat digunakan tanpa hambatan. 
+Untuk melakukan pembayaran, silakan klik tautan berikut:
+🔗 ${link}
+
+Jika Anda membutuhkan bantuan, jangan ragu untuk menghubungi Customer Service kami melalui:
+☑️ WhatsApp: +628138005669
+
+*Abaikan informasi ini apabila Anda telah melakukan pembayaran.*
+
+Terima kasih dan salam sehat selalu.`;
   }
 
   buildServiceExpired(link: string): string {
-    return `⚠️ Layanan Dinonaktifkan
+    return `Pelanggan MBI NET yang terhormat,
 
-Langganan Anda telah berakhir. Mohon lakukan perpanjangan segera.
+Kami informasikan bahwa masa aktif layanan internet Anda saat ini telah berakhir dan layanan sementara kami nonaktifkan.
 
-Bayar di sini: ${link}
+Agar dapat kembali menikmati layanan internet tanpa hambatan, mohon perpanjang langganan Anda melalui tautan berikut:
+🔗 ${link}
 
-Layanan Anda akan dipulihkan maksimal 24 jam setelah pembayaran diverifikasi.`;
+Layanan Anda akan dipulihkan maksimal 24 jam setelah pembayaran berhasil diverifikasi.
+
+Jika Anda memiliki pertanyaan atau membutuhkan bantuan, silakan hubungi Customer Service kami melalui:
+☑️ WhatsApp: +628138005669
+
+Terima kasih atas perhatian dan kerja sama Anda.`;
   }
 
   buildPaymentSuccess(transactionId: string): string {
-    return `🎉 Pembayaran Berhasil!
+    return `Pelanggan MBI NET yang terhormat,
 
-ID Transaksi: ${transactionId}
+Terima kasih! Pembayaran Anda telah kami terima dengan sukses. Layanan internet Anda kini telah aktif kembali.
 
-Layanan Anda telah aktif kembali. Terima kasih atas pembayaran Anda!
+*Detail Transaksi:*
+🆔 ID Transaksi: ${transactionId}
 
-Butuh bantuan? Hubungi kami kapan saja di +628138005669.`;
+Semoga aktivitas digital Anda semakin lancar dengan layanan kami.
+
+Jika Anda membutuhkan bantuan lebih lanjut, jangan ragu untuk menghubungi Customer Service kami:
+☑️ WhatsApp: +628138005669
+
+Terima kasih dan salam sehat selalu.`;
   }
 
   buildPaymentRejected(reason: string, link: string): string {
-    return `❌ Pembayaran Ditolak
+    return `Pelanggan MBI NET yang terhormat,
 
-Alasan: ${reason}
+Mohon maaf, pembayaran Anda tidak dapat kami proses saat ini. 
 
-Silakan lakukan pembayaran ulang di sini: ${link}
+*Alasan:* ${reason}
 
-Jika membutuhkan bantuan, silakan hubungi tim support kami di +628138005669.`;
+Silakan mencoba kembali untuk melakukan pembayaran melalui tautan berikut:
+🔗 ${link}
+
+Jika Anda mengalami kesulitan atau memiliki pertanyaan, Customer Service kami siap membantu:
+☑️ WhatsApp: +628138005669
+
+Terima kasih atas pengertian Anda.`;
   }
 
   buildWelcomeMessage(
@@ -506,18 +531,21 @@ Jika membutuhkan bantuan, silakan hubungi tim support kami di +628138005669.`;
     paymentId: string,
     link: string,
   ): string {
-    return `👋 *Selamat Datang, ${name}!*
+    return `Halo *${name}*, selamat datang di MBI NET! 👋
 
-Terima kasih telah bergabung dengan *MBI NET*. Berikut detail akun Anda:
+Terima kasih telah mempercayakan kebutuhan internet Anda kepada kami. Semoga kehadiran layanan MBI NET dapat mendukung kelancaran aktivitas digital Anda.
 
-🆔 *Customer ID:* ${customerId}
-💳 *ID Pembayaran:* ${paymentId}
+Berikut adalah detail akun Anda:
+🆔 *Customer ID*: ${customerId}
+💳 *ID Pembayaran*: ${paymentId}
 
-Untuk melanjutkan aktivasi dan melihat detail transaksi:
+Untuk melanjutkan proses aktivasi dan melihat detail transaksi Anda, silakan klik tautan berikut:
 🔗 ${link}
 
-Jika membutuhkan bantuan, silakan hubungi tim support kami di +628138005669.
-Selamat menikmati layanan internet cepat kami! 🚀`;
+Jika Anda memiliki pertanyaan atau butuh bantuan, silakan hubungi Customer Service kami:
+☑️ WhatsApp: +628138005669
+
+Selamat menikmati koneksi yang cepat dan andal bersama kami! 🚀`;
   }
 
   buildMigrationWelcomeMessage(
@@ -526,19 +554,20 @@ Selamat menikmati layanan internet cepat kami! 🚀`;
     password: string,
     loginUrl: string,
   ): string {
-    return `👋 *Halo ${name}!*  
+    return `Halo *${name}*, selamat datang di sistem terbaru MBI NET! 👋
 
-Selamat datang di *Sistem Baru MBI NET!*
+Kami ingin menginformasikan bahwa akun Anda telah berhasil kami pindahkan ke sistem baru yang dirancang untuk memberikan pengalaman yang lebih baik.
 
-Akun lama Anda telah berhasil dipindahkan ke sistem baru kami.  
-Berikut adalah detail akun untuk login:
-
+Berikut adalah detail akses untuk akun Anda:
 📧 *Email*: ${email}
 🔑 *Password Baru*: ${password}
 
-Silakan login di sini:
+Silakan login menggunakan akses di atas melalui tautan berikut:
 🔗 ${loginUrl}
 
-Jika membutuhkan bantuan hubungi tim kami di +628138005669, tim support kami selalu siap membantu 🚀`;
+Jika Anda mengalami kendala saat login atau memiliki pertanyaan lainnya, tim support kami selalu siap membantu:
+☑️ WhatsApp: +628138005669
+
+Terima kasih atas kesetiaan Anda bersama MBI NET! 🚀`;
   }
 }
